@@ -11,10 +11,10 @@ import plotly.express as px
 # นำเข้า Library สำหรับสร้างไฟล์ PDF ภาษาไทยมาตรฐาน
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ตั้งค่าหน้าจอโปรแกรม
 st.set_page_config(page_title="Procurement Workspace", layout="wide")
@@ -49,6 +49,23 @@ THAI_REGIONS = {
     "ภาคตะวันตก": ["ราชบุรี", "กาญจนบุรี", "เพชรบุรี", "ประจวบคีรีขันธ์"],
     "ภาคใต้": ["ภูเก็ต", "สงขลา", "สุราษฎร์ธานี", "นครศรีธรรมราช", "กระบี่", "พังงา", "ตรัง", "พัทลุง", "ชุมพร", "ระนอง", "สตูล", "ปัตตานี", "ยะลา", "นราธิวาส"]
 }
+
+# --- [ADD] ฟังก์ชันสำหรับสั่งเปิดโฟลเดอร์ในเครื่องคอมพิวเตอร์แบบ Local ---
+def open_local_folder(folder_path):
+    try:
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        current_os = platform.system()
+        if current_os == "Windows":
+            os.startfile(folder_path)
+        elif current_os == "Darwin":  # macOS
+            subprocess.Popen(["open", folder_path])
+        else:  # Linux
+            subprocess.Popen(["xdg-open", folder_path])
+        st.toast(f"เปิดโฟลเดอร์เรียบร้อยแล้ว: {os.path.basename(folder_path)}", icon="📁")
+    except Exception as e:
+        st.error(f"ไม่สามารถเปิดโฟลเดอร์ได้อัตโนมัติ: {e}\nที่อยู่โฟลเดอร์คือ: {folder_path}")
+
 # ฟังก์ชันจัดการระบบฐานข้อมูล
 def load_json_file(file_path, default_val):
     if os.path.exists(file_path):
@@ -169,7 +186,7 @@ def add_category_dialog():
     if st.button("💾 บันทึกหมวดหมู่ใหม่", use_container_width=True):
         if new_cat and new_cat not in st.session_state.categories_list:
             st.session_state.categories_list.append(new_cat)
-            save_categories(st.session_state.categories_list)
+            save_categories(st.session_state.categories_list)  # [FIXED] ย้ายเข้ามาในบล็อกเงื่อนไขให้ถูกต้อง
             st.rerun()
 
 # =========================================================================
@@ -191,9 +208,13 @@ with st.sidebar:
 if main_menu == "🏠 หน้าหลัก (Dashboard)":
     st.title("ワークスペース • หน้าหลักระบบจัดซื้อ")
     clock_html = """
-    <div style="text-align: center; font-family: 'Courier New', Courier, monospace; padding: 20px; background: #1e1e24; border-radius: 12px; border: 1px solid #333; margin-bottom: 25px;">
-        <div id="live-clock" style="font-size: 55px; font-weight: bold; color: #00ffcc; letter-spacing: 3px; text-shadow: 0 0 10px rgba(0,255,204,0.3);">00:00:00</div>
-        <div id="live-date" style="font-size: 18px; color: #ffffff; margin-top: 8px; font-family: 'Helvetica Neue', Arial, sans-serif;">วันเดือนปี</div>
+    <div style="text-align: center;
+    font-family: 'Courier New', Courier, monospace; padding: 20px; background: #1e1e24; border-radius: 12px; border: 1px solid #333;
+    margin-bottom: 25px;">
+        <div id="live-clock" style="font-size: 55px; font-weight: bold; color: #00ffcc; letter-spacing: 3px;
+        text-shadow: 0 0 10px rgba(0,255,204,0.3);">00:00:00</div>
+        <div id="live-date" style="font-size: 18px; color: #ffffff; margin-top: 8px;
+        font-family: 'Helvetica Neue', Arial, sans-serif;">วันเดือนปี</div>
     </div>
     <script>
         function updateWidgetClock() {
@@ -279,6 +300,7 @@ elif main_menu == "📦 ระบบจัดการ RFQ":
         current_ym = datetime.now().strftime('%Y%m')
         prefix = f"RFQ-{current_ym}-"
         count_current_month = sum(1 for item in st.session_state.rfq_history if item["id"].startswith(prefix))
+        
         auto_rfq_id = f"{prefix}{(count_current_month + 1):04d}"
         
         f_col1, f_col2 = st.columns([2, 1])
@@ -286,6 +308,7 @@ elif main_menu == "📦 ระบบจัดการ RFQ":
             with st.form("rfq_form", clear_on_submit=True):
                 rfq_id = st.text_input("เลขที่ RFQ", value=auto_rfq_id)
                 project_name = st.text_input("ชื่อโครงการ (Project Name)", placeholder="เช่น โครงการติดตั้ง EV Charging Station")
+                
                 if not st.session_state.requestors_list:
                     st.error("⚠️ ยังไม่มีรายชื่อผู้ร้องขอในระบบ")
                     selected_requestor = None
@@ -303,7 +326,7 @@ elif main_menu == "📦 ระบบจัดการ RFQ":
                         
                         full_folder_path = os.path.join(BASE_DIR, folder_name)
                         if not os.path.exists(full_folder_path): os.makedirs(full_folder_path)
-                            
+                                             
                         new_rfq = {
                             "id": clean_rfq, "project": clean_project, "requestor": selected_requestor.strip(),
                             "folder_name": full_folder_path, "date": str(rfq_date), "details": details, "deadline": str(deadline),
@@ -347,7 +370,7 @@ elif main_menu == "📦 ระบบจัดการ RFQ":
                                 clean_filename = f"{sup_name}_{uploaded_file.name}".replace("/", "_").replace("\\", "_")
                                 file_path_saved = os.path.join(target_folder, clean_filename)
                                 with open(file_path_saved, "wb") as f: f.write(uploaded_file.getbuffer())
-                            
+                                         
                             current_rfq["suppliers"].append({
                                 "name": sup_name, "price": price, "terms": terms, "file_path": file_path_saved,
                                 "date_added": datetime.now().strftime('%Y-%m-%d %H:%M'), "items": []
@@ -398,7 +421,7 @@ elif main_menu == "📦 ระบบจัดการ RFQ":
                         save_data(st.session_state.rfq_history)
                         st.toast(f"บันทึกข้อมูลสำเร็จ!", icon="✅")
                         st.rerun()
-                
+                                 
                 if target_sup_obj.get("items"):
                     df_sup_items = pd.DataFrame(target_sup_obj["items"])[["item_code", "category", "item_name", "unit", "material_rate", "labor_rate", "total_rate", "date_updated"]]
                     df_sup_items.columns = ["รหัสสินค้า", "หมวดหมู่", "รายการวัสดุ", "หน่วย", "ราคาวัสดุ/หน่วย", "ค่าแรง/หน่วย", "ราคารวมต่อหน่วย", "วันที่บันทึก"]
@@ -483,7 +506,7 @@ elif main_menu == "🏢 ข้อมูล Supplier":
         st.info(st.session_state.areas_output_add)
         if st.button("🗺️ เปิดหน้าต่างเลือกพื้นที่รับงาน (Popup)", key=f"btn_pop_areas_add_{st.session_state.sup_clear_counter}", icon="🌍"):
             select_areas_dialog()
-            
+             
         s_address = st.text_area("ที่อยู่บริษัท", key=f"add_s_address_{st.session_state.sup_clear_counter}")
         s_credit = st.text_input("เครดิตเทอม", key=f"add_s_credit_{st.session_state.sup_clear_counter}")
         s_info = st.text_area("หมายเหตุทั่วไป", key=f"add_s_info_{st.session_state.sup_clear_counter}")
@@ -548,7 +571,6 @@ elif main_menu == "🏢 ข้อมูล Supplier":
 
     with s_tab2:
         st.markdown("### 🔍 ศูนย์ประวัติและฐานข้อมูลข้อมูลซัพพลายเออร์ฉบับเต็ม")
-        
         col_pop1, col_pop2 = st.columns([2, 3])
         with col_pop1:
             if st.button("🏢 คลิกเพื่อเลือกซัพพลายเออร์ (POPUP ค้นหา)", use_container_width=True, icon="🔍"):
@@ -592,7 +614,7 @@ elif main_menu == "🏢 ข้อมูล Supplier":
                         st.session_state.selected_supplier_name = None
                         st.success(f"ลบข้อมูลเรียบร้อย")
                         st.rerun()
-                        
+                                 
                 with v_col2:
                     st.markdown("### 📂 คลังเอกสารนิติบุคคลแนบ")
                     paths = {"pp": sup.get("pp20_path", ""), "cert": sup.get("cert_path", ""), "bb": sup.get("bb_path", "")}
@@ -624,7 +646,6 @@ elif main_menu == "🏢 ข้อมูล Supplier":
                 else:
                     valid_contacts = [c for c in sup["contacts"] if c.get("name")]
                     df_contacts = pd.DataFrame(valid_contacts)
-                    
                     df_contacts = df_contacts[["name", "phone", "email", "line"]]
                     df_contacts.columns = ["ชื่อผู้ติดต่อ", "เบอร์โทรศัพท์", "อีเมล (Email)", "Line ID"]
                     st.dataframe(df_contacts, use_container_width=True, hide_index=True)
@@ -656,7 +677,6 @@ elif main_menu == "🏢 ข้อมูล Supplier":
                 matched_area_sups = []
                 for s in st.session_state.suppliers_master:
                     sup_areas = s.get("service_areas", "")
-                    
                     if sup_areas == "ทุกจังหวัดทั่วประเทศ":
                         matched_area_sups.append(s)
                     elif target_search_prov in sup_areas:
@@ -675,7 +695,7 @@ elif main_menu == "🏢 ข้อมูล Supplier":
                         main_contact_person = "-"
                         if s.get("contacts") and s["contacts"][0].get("name"):
                             main_contact_person = f"{s['contacts'][0]['name']} ({s['contacts'][0].get('phone', '-')})"
-                            
+                                             
                         display_area_data.append({
                             "ชื่อบริษัท / ผู้ขาย": s["name"],
                             "เลขประจำตัวผู้เสียภาษี (Tax ID)": s.get("tax_id", "-"),
@@ -723,7 +743,7 @@ elif main_menu == "📊 BOQ Supplier":
                     r_c2.write(f"{s['price']:,.2f}")
                     r_c3.write(s["terms"] if s["terms"] else "-")
                     r_c4.write(s["date_added"])
-                    
+                                     
                     f_p = s.get("file_path", "")
                     if f_p and not os.path.isabs(f_p): f_p = os.path.join(BASE_DIR, f_p)
                     if f_p and os.path.exists(f_p):
@@ -737,9 +757,7 @@ elif main_menu == "📊 BOQ Supplier":
         search_lay1, search_lay2 = st.columns([4, 1])
         search_query = search_lay1.text_input("ค้นหาประวัติราคา", placeholder="พิมพ์ชื่อรายการวัสดุ หมวดหมู่ หรือชื่อร้านค้า เช่น CV 1C-150sq.mm", label_visibility="collapsed")
         
-        # --- 1. รวบรวมข้อมูลจากทั้ง 2 แหล่ง (RFQ History และ Standalone Prices) ---
         flat_records = []
-        
         # ดึงจากระบบ RFQ
         for rfq_idx, rfq in enumerate(st.session_state.rfq_history):
             for sup_idx, sup in enumerate(rfq.get("suppliers", [])):
@@ -780,7 +798,6 @@ elif main_menu == "📊 BOQ Supplier":
         if not flat_records:
             st.info("💡 ปัจจุบันยังไม่มีข้อมูลรายการวัสดุแยกย่อยในคลังระบบ")
         else:
-            # ทำการกรองข้อมูลตาม Keyword
             if search_query:
                 q = search_query.strip().lower()
                 filtered_records = [r for r in flat_records if q in r["รายการวัสดุ"].lower() or q in r["หมวดหมู่"].lower() or q in r["ชื่อบริษัท/ผู้ขาย"].lower()]
@@ -790,13 +807,11 @@ elif main_menu == "📊 BOQ Supplier":
             st.markdown(f"พบรายการราคาวัสดุทั้งหมด **{len(filtered_records)}** รายการ")
             
             if filtered_records:
-                # แปลงเป็น DataFrame และสร้างช่อง Checkbox ให้ติ๊กเลือกหน้าตาราง
                 df_history = pd.DataFrame(filtered_records)
                 df_history.insert(0, "เลือกรายการ 🎯", False)
                 
                 show_cols = ["เลือกรายการ 🎯", "หมวดหมู่", "รายการวัสดุ", "ชื่อบริษัท/ผู้ขาย", "หน่วย", "ราคาวัสดุ / หน่วย (บาท)", "ค่าแรง/หน่วย (บาท)", "ราคารวมต่อหน่วย (บาท)", "วันที่อัปเดตราคา", "อ้างอิงแหล่งข้อมูล"]
-                
-                # แสดงผลตารางแบบ Data Editor เพื่อให้พี่ติ๊กเลือกข้อได้สดๆ
+                                 
                 edited_df = st.data_editor(
                     df_history[show_cols],
                     use_container_width=True,
@@ -815,20 +830,17 @@ elif main_menu == "📊 BOQ Supplier":
                     }
                 )
                 
-                # ตรวจสอบการติ๊กเลือกแถวบนตาราง
                 checked_rows = edited_df[edited_df["เลือกรายการ 🎯"] == True]
                 
                 if len(checked_rows) > 1:
                     st.warning("⚠️ พี่ติ๊กเลือกพร้อมกันหลายข้อเกินไปครับ กรุณาเลือกติ๊กถูกแค่ 'ข้อเดียว' ที่ต้องการจัดการครับ")
                 elif len(checked_rows) == 1:
                     st.markdown("---")
-                    # ดึงข้อมูลแถวตัวจริงที่โดนเลือก
                     target_idx = checked_rows.index[0]
                     target_row = filtered_records[target_idx]
                     
                     st.markdown(f"### ⚙️ เครื่องมือจัดการ: *{target_row['รายการวัสดุ']}*")
-                    
-                    # ตรวจสอบรายชื่อซัพพลายเออร์ที่มีทั้งหมดในระบบมาสเตอร์คู่ค้า
+                                 
                     if st.session_state.suppliers_master:
                         master_sups = [s["name"] for s in st.session_state.suppliers_master]
                         if target_row["ชื่อบริษัท/ผู้ขาย"] not in master_sups:
@@ -838,7 +850,6 @@ elif main_menu == "📊 BOQ Supplier":
                         master_sups = [target_row["ชื่อบริษัท/ผู้ขาย"]]
                         current_sup_idx = 0
                     
-                    # วาง Layout เครื่องมือสำหรับการแก้ไขข้อมูลย่อยแบบ Single Row
                     with st.form("edit_single_record_form", clear_on_submit=False):
                         col_e1, col_e2 = st.columns(2)
                         with col_e1:
@@ -853,14 +864,11 @@ elif main_menu == "📊 BOQ Supplier":
                         
                         st.markdown("<br>", unsafe_allow_html=True)
                         btn_space1, btn_space2 = st.columns([3, 1])
-                        
-                        # ปุ่มบันทึกการแก้ไข
+                                                 
                         if btn_space1.form_submit_button("💾 บันทึกการแก้ไขข้อมูลทั้งหมดของรายการนี้", use_container_width=True):
                             if target_row["source_type"] == "rfq":
                                 r_idx, s_idx, i_idx = target_row["index_keys"]
-                                # แก้ไขฝั่งรากเงื่อนไข Supplier ของใบงาน RFQ
                                 st.session_state.rfq_history[r_idx]["suppliers"][s_idx]["name"] = edit_sup
-                                
                                 item_ptr = st.session_state.rfq_history[r_idx]["suppliers"][s_idx]["items"][i_idx]
                                 item_ptr["category"] = edit_cat
                                 item_ptr["item_name"] = edit_name
@@ -887,7 +895,6 @@ elif main_menu == "📊 BOQ Supplier":
                             st.toast("อัปเดตข้อมูลและราคาพัสดุสำเร็จเรียบร้อย!", icon="✅")
                             st.rerun()
                             
-                        # ปุ่มลบแถวนี้ออกจากระบบ
                         if btn_space2.form_submit_button("🗑️ ลบรายการนี้ออก", use_container_width=True, type="primary"):
                             if target_row["source_type"] == "rfq":
                                 r_idx, s_idx, i_idx = target_row["index_keys"]
@@ -926,11 +933,13 @@ elif main_menu == "📊 BOQ Supplier":
                     st.markdown("<br>", unsafe_allow_html=True)
                     if st.form_submit_button("🟩 บันทึกข้อมูลเข้าคลังราคา"):
                         if selected_sup_name:
+                            # [FIXED] แปลงฟอร์แมตวันที่ที่ดึงจาก date_input ให้เป็น string ที่เซฟลง JSON ได้อย่างปลอดภัย
+                            date_str = st_date.strftime('%d/%m/%Y') if hasattr(st_date, 'strftime') else str(st_date)
                             st.session_state.standalone_prices.append({
                                 "item_code": item_master_boq_obj["code"], "category": item_master_boq_obj["category"],
                                 "item_name": item_master_boq_obj["item_name"], "supplier_name": selected_sup_name,
                                 "unit": item_master_boq_obj["unit"], "material_rate": st_mat_rate, "labor_rate": st_lab_rate,
-                                "total_rate": st_mat_rate + st_lab_rate, "date_updated": st_date.strftime('%d/%m/%Y')
+                                "total_rate": st_mat_rate + st_lab_rate, "date_updated": date_str
                             })
                             save_standalone_prices(st.session_state.standalone_prices)
                             st.success(f"💾 จัดเก็บเรียบร้อย!")
@@ -1031,7 +1040,7 @@ elif main_menu == "🗂️ บริหาร Item Code":
                 target_del_code = selected_item_del_display.split("]")[0].replace("[", "")
                 is_item_used_rfq = any(item.get("item_code") == target_del_code for rfq in st.session_state.rfq_history for sup in rfq.get("suppliers", []) for item in sup.get("items", []))
                 is_item_used_standalone = any(x.get("item_code") == target_del_code for x in st.session_state.standalone_prices)
-                
+                         
                 if is_item_used_rfq or is_item_used_standalone: 
                     st.error("❌ ไม่สามารถลบได้ เนื่องจากรหัสนี้ถูกนำไปใช้งานบันทึกราคาในประวัติจัดซื้อแล้ว")
                 else:
@@ -1040,7 +1049,8 @@ elif main_menu == "🗂️ บริหาร Item Code":
                     save_item_codes(st.session_state.item_codes_master)
                     st.success(f"ลบรหัสสินค้าเรียบร้อย")
                     st.rerun()
-                    # =========================================================================
+
+# =========================================================================
 # 📝 จัดทำ BOQ เพื่อเสนอ (NEW FEATURE ฟังก์ชันรันเลข PUR- เจน PDF ขาออก)
 # =========================================================================
 elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
@@ -1053,7 +1063,6 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
         if not st.session_state.pur_proposals:
             st.info("💡 ปัจจุบันยังไม่มีการสร้างเอกสารเสนอราคา PUR ในคลังระบบ")
         else:
-            # ตารางสรุปภาพรวมหน้ารวม
             summary_pur_data = []
             for proposal in st.session_state.pur_proposals:
                 total_proposal_price = sum(float(item.get("total_price", 0.0)) for item in proposal.get("items", []))
@@ -1077,12 +1086,10 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
             if selected_pur_option:
                 target_pur_id = selected_pur_option.split(" | ")[0]
                 curr_pur_obj = next(p for p in st.session_state.pur_proposals if p["id"] == target_pur_id)
-                
+                     
                 st.info(f"📁 **กำลังจัดการเอกสาร:** {curr_pur_obj['id']} | **โครงการ:** {curr_pur_obj['project_name']} | **ลูกค้า:** {curr_pur_obj['client_name']}")
-                
-                # --- ส่วนลงรายละเอียด Line Items แยกย่อยภายในโครงการ ---
                 st.markdown("#### ➕ เพิ่มรายการวัสดุและคำนวณราคาลงใน BOQ เสนอราคา")
-                
+                         
                 if not st.session_state.item_codes_master:
                     st.error("⚠️ ต้องไปลงทะเบียนไอเทมที่หน้า 'บริหาร Item Code' ก่อนครับ")
                 else:
@@ -1091,7 +1098,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     
                     item_code_extracted = sel_item_choice.split("]")[0].replace("[", "")
                     master_item_ptr = next(i for i in st.session_state.item_codes_master if i["code"] == item_code_extracted)
-                    
+                     
                     col_l1, col_l2, col_l3 = st.columns(3)
                     with col_l1:
                         input_qty = st.number_input("ระบุจำนวน (Quantity)", min_value=0.0, step=1.0, value=1.0)
@@ -1099,14 +1106,14 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         input_mat_rate = st.number_input("ระบุราคาวัสดุเสนอขาย / หน่วย (บาท)", min_value=0.0, step=10.0, value=0.0)
                     with col_l3:
                         input_lab_rate = st.number_input("ระบุค่าแรงเสนอขาย / หน่วย (บาท)", min_value=0.0, step=10.0, value=0.0)
-                        
+                         
                     if st.button("➕ กดเพื่อเพิ่มลำดับวัสดุรายการนี้เข้า BOQ", use_container_width=True, type="primary"):
                         unit_rate_total = input_mat_rate + input_lab_rate
                         line_total_price = unit_rate_total * input_qty
-                        
+                                             
                         if "items" not in curr_pur_obj:
                             curr_pur_obj["items"] = []
-                            
+                                             
                         curr_pur_obj["items"].append({
                             "item_code": master_item_ptr["code"],
                             "item_name": master_item_ptr["item_name"],
@@ -1121,12 +1128,11 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         st.toast("เพิ่มรายการพัสดุเข้า BOQ สำเร็จ!", icon="✅")
                         st.rerun()
                         
-                # แสดงรายการตาราง Line Items ปัจจุบันภายในโปรเจกต์เสนอราคานี้
                 if curr_pur_obj.get("items"):
                     st.markdown("##### 📊 ตารางรายละเอียดวัสดุในใบเสนอราคาปัจจุบัน")
                     df_lines = pd.DataFrame(curr_pur_obj["items"])
                     df_lines.insert(0, "ลำดับที่", range(1, len(df_lines) + 1))
-                    
+                     
                     df_display_lines = df_lines[["ลำดับที่", "item_code", "item_name", "unit", "qty", "material_rate", "labor_rate", "unit_rate_total", "total_price"]]
                     df_display_lines.columns = ["ลำดับ", "รหัสวัสดุ", "รายละเอียดวัสดุ", "หน่วย", "จำนวน", "ราคาวัสดุ/หน่วย", "ค่าแรง/หน่วย", "ราคารวมต่อหน่วย", "ยอดรวมสุทธิ (บาท)"]
                     
@@ -1146,19 +1152,21 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกฉบับมาตรฐานจัดซื้อสากล ---
                     pdf_filename = f"Proposal_{curr_pur_obj['id']}.pdf"
                     pdf_path = os.path.join(BASE_DIR, pdf_filename)
-                    
+                                         
                     doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
                     styles = getSampleStyleSheet()
                     
-                    # พยายามจดทะเบียนฟอนต์ภาษาไทยเพื่อไม่ให้ตัวหนังสือเป็นสี่เหลี่ยม (สลับใช้ Helvetica กรณีรันบน Linux Cloud เผื่อไม่พบไฟล์ฟอนต์ในเครื่อง)
+                    # [PRO-TIP] เพื่อป้องกันภาษาไทยสี่เหลี่ยม แนะนำดาวน์โหลดไฟล์ THSarabunNew.ttf มาตั้งคู่กับโปรแกรม
                     try:
-                        pdfmetrics.registerFont(TTFont('THSarabunNew', 'THSarabunNew.ttf'))
+                        pdfmetrics.registerFont(TTFont('THSarabunNew', os.path.join(BASE_DIR, 'THSarabunNew.ttf')))
                         title_style = ParagraphStyle('TitleStyle', fontName='THSarabunNew', fontSize=24, leading=26, alignment=1, spaceAfter=20)
                         text_style = ParagraphStyle('TextStyle', fontName='THSarabunNew', fontSize=14, leading=16)
+                        font_to_use = 'THSarabunNew'
                     except:
                         title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=20, alignment=1, spaceAfter=20)
                         text_style = ParagraphStyle('TextStyle', fontName='Helvetica', fontSize=12)
-                        
+                        font_to_use = 'Helvetica'
+                         
                     story = []
                     story.append(Paragraph(f"<b>PRICE PROPOSAL / BOQ SHEET</b>", title_style))
                     story.append(Paragraph(f"<b>Document ID (เลขที่ใบเสนอราคา):</b> {curr_pur_obj['id']}", text_style))
@@ -1167,14 +1175,13 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(Paragraph(f"<b>Date (วันที่ออกเอกสาร):</b> {curr_pur_obj['date']}", text_style))
                     story.append(Spacer(1, 15))
                     
-                    # โครงสร้างตารางเนื้อหาพัสดุในไฟล์ PDF
                     table_data = [["No.", "Item Code", "Description", "Unit", "Qty", "Unit Rate", "Total"]]
                     for i, it in enumerate(curr_pur_obj["items"]):
                         table_data.append([
                             str(i+1), it["item_code"], it["item_name"], it["unit"], f"{it['qty']:,.0f}", f"{it['unit_rate_total']:,.2f}", f"{it['total_price']:,.2f}"
                         ])
                     table_data.append(["", "", "", "", "", "GRAND TOTAL:", f"{grand_total_boq:,.2f}"])
-                    
+                                         
                     pdf_table = Table(table_data, colWidths=[25, 60, 200, 35, 35, 75, 80])
                     pdf_table.setStyle(TableStyle([
                         ('BACKGROUND', (0,0), (-1,0), colors.grey),
@@ -1186,13 +1193,12 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         ('BACKGROUND', (0,1), (-1,-2), colors.beige),
                         ('GRID', (0,0), (-1,-2), 1, colors.black),
                         ('LINEABOVE', (0,-1), (-1,-1), 1.5, colors.black),
-                        ('FONTNAME', (0,0), (-1,-1), title_style.fontName)
+                        ('FONTNAME', (0,0), (-1,-1), font_to_use) # [FIXED] เรียกใช้ตัวแปรชื่อฟอนต์ที่ลงทะเบียนได้จริง
                     ]))
                     
                     story.append(pdf_table)
                     doc.build(story)
                     
-                    # ปุ่มดาวน์โหลดเอกสาร PDF ขาออกไปใช้งานพริ้นต์จริง
                     with open(pdf_path, "rb") as pdf_file:
                         st.download_button(
                             label="🖨️ ดาวน์โหลดใบเสนอราคาประมาณการรวมเป็นไฟล์ PDF",
@@ -1202,7 +1208,6 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                             use_container_width=True
                         )
                     
-                    # ปุ่มกดล้างหรือลบใบงาน PUR ชิ้นนี้ออกจากประวัติคลังข้อมูล
                     if st.button("🗑️ ลบเอกสารใบเสนอราคา PUR นี้ออกจากประวัติคลังข้อมูลทั้งหมด", type="primary"):
                         st.session_state.pur_proposals.remove(curr_pur_obj)
                         save_pur_proposals(st.session_state.pur_proposals)
@@ -1211,15 +1216,12 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
 
     with pur_tab2:
         st.subheader("🆕 บันทึกสร้างโปรเจกต์เอกสารเสนอราคา (ขาออก) ใบใหม่")
+        curr_year_short = datetime.now().strftime('%y') 
+        curr_month = datetime.now().strftime('%m')      
+        pur_prefix = f"PUR-{curr_year_short}{curr_month}" 
         
-        # ตรรกะการคำนวณรหัสอัตโนมัติประจำเดือนตามที่สั่งมา: PUR-(ปีเลข2หลักหลัง)(เดือน)0001
-        curr_year_short = datetime.now().strftime('%y') # ดึงปี 2 หลักหลัง เช่น 2026 -> 26
-        curr_month = datetime.now().strftime('%m')      # ดึงเดือน 2 หลัก เช่น 05
-        pur_prefix = f"PUR-{curr_year_short}{curr_month}" # เช่น PUR-2605
-        
-        # นับจำนวนใบเสนอราคาในเดือนนี้ที่มีอยู่แล้วเพื่อรันตัวเลขต่อกัน
         count_pur_month = sum(1 for p in st.session_state.pur_proposals if p["id"].startswith(pur_prefix))
-        auto_pur_id = f"{pur_prefix}{(count_pur_month + 1):04d}" # เจนออกมาได้ เช่น PUR-26050001
+        auto_pur_id = f"{pur_prefix}{(count_pur_month + 1):04d}" 
         
         with st.form("create_pur_proposal_form", clear_on_submit=True):
             new_pur_id = st.text_input("เลขที่ใบเสนอราคาอัตโนมัติ (PUR ID)", value=auto_pur_id)
