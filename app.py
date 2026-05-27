@@ -1221,18 +1221,17 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                             
                     st.markdown("---")
                     # [FIXED] แก้ไขไวยากรณ์การดึงค่าไอเทมวนลูปให้ถูกต้องเรียบร้อย ไม่เกิด NameError ตัวแปรลอย
-                    grand_total_boq = sum(float(item.get("total_price", 0.0)) for item in curr_pur_obj["items"]) # 
-                    st.markdown(f"<h3 style='text-align: right; color:#00ffcc;'>💰 ยอดรวมมูลค่าเอกสารทั้งสิ้น: {grand_total_boq:,.2f} บาท</h3>", unsafe_allow_html=True) # [cite: 205, 206]
+                    st.markdown("---")
+                    grand_total_boq = sum(float(item.get("total_price", 0.0)) for item in curr_pur_obj["items"])
+                    st.markdown(f"<h3 style='text-align: right; color:#00ffcc;'>💰 ยอดรวมมูลค่าเอกสารทั้งสิ้น: {grand_total_boq:,.2f} บาท</h3>", unsafe_allow_html=True)
                     
-                    # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกตามรูปแบบ "ใบขอสอบราคา" (อัปเดตขยายแถบเทาและคัดยอดเงินออก) ---
+                    # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกตามรูปแบบ "ใบขอสอบราคา" ---
                     pdf_filename = f"Request_for_Quotation_{curr_pur_obj['id']}.pdf"
                     pdf_path = os.path.join(BASE_DIR, pdf_filename)
                     
-                    # ปรับระยะขอบหน้ากระดาษ (Margin) ให้บาลานซ์สวยงามเข้ามุมพอดี
                     doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=25, bottomMargin=25)
                     story = []
                     
-                    # ลงทะเบียนฟอนต์ DB Heavent
                     try:
                         font_file_path = os.path.join(BASE_DIR, 'DB Heavent v3.2.2.ttf')
                         pdfmetrics.registerFont(TTFont('DBHeavent', font_file_path))
@@ -1244,7 +1243,6 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         footer_style = ParagraphStyle('FooterStyle', fontName='DBHeavent', fontSize=13, leading=15, alignment=1)
                         font_to_use = 'DBHeavent'
                     except Exception as e:
-                        st.error(f"⚠️ ไม่พบไฟล์ฟอนต์ 'DB Heavent v3.2.2.ttf' ระบบจะใช้ฟอนต์มาตรฐานแทน: {e}")
                         title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=18, alignment=1)
                         text_style = ParagraphStyle('TextStyle', fontName='Helvetica', fontSize=10, leading=12)
                         text_bold = ParagraphStyle('TextBold', fontName='Helvetica-Bold', fontSize=10, leading=12)
@@ -1252,9 +1250,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         footer_style = ParagraphStyle('FooterStyle', fontName='Helvetica', fontSize=10, alignment=1)
                         font_to_use = 'Helvetica'
 
-                    # -------------------------------------------------------------------------
-                    # ส่วนที่ 1: Header (โลโก้ SHARGE ฝั่งซ้าย + หัวข้อ ใบขอสอบราคา)
-                    # -------------------------------------------------------------------------
+                    # 1. Header โลโก้บริษัท
                     logo_path = os.path.join(BASE_DIR, 'SHARGE.png')
                     if os.path.exists(logo_path):
                         logo_img = Image(logo_path, width=120, height=38)
@@ -1262,9 +1258,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     else:
                         logo_cell = Paragraph("<b>SHARGE</b>", title_style)
                         
-                    top_header_data = [
-                        [logo_cell, Paragraph("<b>ใบขอสอบราคา</b>", title_style), ""]
-                    ]
+                    top_header_data = [[logo_cell, Paragraph("<b>ใบขอสอบราคา</b>", title_style), ""]]
                     top_header_table = Table(top_header_data, colWidths=[150, 245, 140])
                     top_header_table.setStyle(TableStyle([
                         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -1273,21 +1267,14 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     ]))
                     story.append(top_header_table)
 
-                    # -------------------------------------------------------------------------
-                    # ส่วนที่ 2: บล็อกข้อมูล (ปรับแถบสีเทาด้านบนยาวเชื่อมหากันทั้งสองฝั่ง)
-                    # -------------------------------------------------------------------------
+                    # 2. บล็อกข้อมูลโครงการ
                     requestor_name = curr_pur_obj.get('requestor', '-')
                     client_company = curr_pur_obj.get('client_name', '-')
                     project_title = curr_pur_obj.get('project_name', '-')
                     doc_date = curr_pur_obj.get('date', '-')
 
-                    left_block_text = f"""<b>บริษัทที่เสนอ :</b> {client_company}<br/>
-                    <b>โครงการ :</b> {project_title}<br/>
-                    <b>ผู้ร้องขอโครงการ :</b> {requestor_name}"""
-                    
-                    right_block_text = f"""<b>วันที่ request :</b> {doc_date}<br/>
-                    <b>เลขที่ ร้องขอ :</b> {curr_pur_obj['id']}<br/>
-                    <b>RFQ Ref :</b> -"""
+                    left_block_text = f"<b>บริษัทที่เสนอ :</b> {client_company}<br/><b>โครงการ :</b> {project_title}<br/><b>ผู้ร้องขอโครงการ :</b> {requestor_name}"
+                    right_block_text = f"<b>วันที่ request :</b> {doc_date}<br/><b>เลขที่ ร้องขอ :</b> {curr_pur_obj['id']}<br/><b>RFQ Ref :</b> -"
 
                     address_block_data = [
                         [Paragraph("<b>บริษัทที่เสนอ</b>", text_bold), "", Paragraph("", text_bold), ""], 
@@ -1296,106 +1283,74 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     
                     address_table = Table(address_block_data, colWidths=[250, 15, 260, 10])
                     address_table.setStyle(TableStyle([
-                        ('SPAN', (0,0), (1,0)), 
-                        ('SPAN', (2,0), (3,0)), 
-                        ('SPAN', (0,1), (1,1)), 
-                        ('SPAN', (2,1), (3,1)), 
-                        # [FIXED] เทสีพื้นหลังแถบสีเทาขยายกว้างยาวข้ามมาอีกฝั่ง (อินเด็กซ์คอลัมน์ 0 ถึง 3) เพื่อให้ต่อกันเป็นเส้นเดียว
+                        ('SPAN', (0,0), (1,0)), ('SPAN', (2,0), (3,0)), ('SPAN', (0,1), (1,1)), ('SPAN', (2,1), (3,1)), 
                         ('BACKGROUND', (0,0), (3,0), colors.HexColor("#EAEAEA")), 
-                        ('BOX', (0,0), (1,1), 1, colors.HexColor("#CCCCCC")),    
-                        ('BOX', (2,0), (3,1), 1, colors.HexColor("#CCCCCC")),    
-                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                        ('TOPPADDING', (0,0), (-1,-1), 6),
-                        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-                        ('LEFTPADDING', (0,0), (-1,-1), 8),
-                        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+                        ('BOX', (0,0), (1,1), 1, colors.HexColor("#CCCCCC")), ('BOX', (2,0), (3,1), 1, colors.HexColor("#CCCCCC")),    
+                        ('VALIGN', (0,0), (-1,-1), 'TOP'), ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                        ('LEFTPADDING', (0,0), (-1,-1), 8), ('RIGHTPADDING', (0,0), (-1,-1), 8),
                     ]))
                     story.append(address_table)
                     story.append(Spacer(1, 15))
 
-                    # -------------------------------------------------------------------------
-                    # ส่วนที่ 3: ตารางรายการพัสดุสินค้าจัดซื้อ (เพิ่มช่อง Unit ต่อจาก จำนวน)
-                    # -------------------------------------------------------------------------
-                    # [UPDATED] เพิ่มช่อง Unit ต่อจากคอลัมน์จำนวน
+                    # 3. โครงสร้างตารางเนื้อหาพัสดุในไฟล์ PDF (7 คอลัมน์ มีช่อง Unit ครบถ้วน)
                     table_data = [[
                         Paragraph("<b>ลำดับ</b>", header_style),
                         Paragraph("<b>รหัสสินค้า</b>", header_style),
                         Paragraph("<b>รายการสินค้า</b>", header_style),
                         Paragraph("<b>จำนวน</b>", header_style),
-                        Paragraph("<b>Unit</b>", header_style), # เพิ่มหัวข้อ Unit
+                        Paragraph("<b>Unit</b>", header_style),
                         Paragraph("<b>ราคา/หน่วย</b>", header_style),
                         Paragraph("<b>จำนวนเงินรวม</b>", header_style)
                     ]]
-
+                    
                     table_styles_list = [
-                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#D9D9D9")), 
+                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#D9D9D9")),
                         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#999999")),
                         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
                         ('ALIGN', (0,0), (-1,0), 'CENTER'),
-                        ('TOPPADDING', (0,0), (-1,0), 6),
-                        ('BOTTOMPADDING', (0,0), (-1,0), 6),
                     ]
-
-                    items_list = curr_pur_obj.get("items", [])
+                    
                     current_row_idx = 1
-
-                    for idx, it in enumerate(items_list, 1):
+                    for i, it in enumerate(curr_pur_obj["items"]):
                         display_name = it['item_name']
                         if it.get('brand') and it['brand'] != "-":
                             display_name += f" ({it['brand']})"
                             
-                        no_p = Paragraph(str(idx), text_style)
-                        code_p = Paragraph(it['item_code'], text_style)
-                        desc_p = Paragraph(display_name, text_style)
-                        qty_p = Paragraph(f"{it['qty']:,.0f}", text_style)
-                        unit_p = Paragraph(it.get('unit', '-'), text_style) # ดึงค่าหน่วยนับมาแสดงผล
-                        
                         unit_rate = float(it.get("unit_rate_total", it.get("material_rate", 0.0) + it.get("labor_rate", 0.0)))
                         total_line_price = unit_rate * float(it["qty"])
                         
-                        rate_p = Paragraph(f"{unit_rate:,.2f}", text_style)
-                        amount_p = Paragraph(f"{total_line_price:,.2f}", text_style)
-                        
-                        # [UPDATED] ใส่ unit_p เข้าไปต่อท้ายช่องจำนวน (qty_p)
-                        table_data.append([no_p, code_p, desc_p, qty_p, unit_p, rate_p, amount_p])
-                        
+                        table_data.append([
+                            Paragraph(str(i+1), text_style),
+                            Paragraph(it.get("item_code", "-"), text_style),
+                            Paragraph(display_name, text_style),
+                            Paragraph(f"{it['qty']:,.0f}", text_style),
+                            Paragraph(it.get('unit', '-'), text_style),
+                            Paragraph(f"{unit_rate:,.2f}", text_style),
+                            Paragraph(f"{total_line_price:,.2f}", text_style)
+                        ])
                         table_styles_list.append(('ALIGN', (0, current_row_idx), (1, current_row_idx), 'CENTER'))
                         table_styles_list.append(('ALIGN', (2, current_row_idx), (2, current_row_idx), 'LEFT'))
-                        table_styles_list.append(('ALIGN', (3, current_row_idx), (4, current_row_idx), 'CENTER')) # จัดคอลัมน์จำนวนและหน่วยให้อยู่ตรงกลาง
+                        table_styles_list.append(('ALIGN', (3, current_row_idx), (4, current_row_idx), 'CENTER'))
                         table_styles_list.append(('ALIGN', (5, current_row_idx), (6, current_row_idx), 'RIGHT'))
-                        table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
-                        table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
                         current_row_idx += 1
-
-                    # -------------------------------------------------------------------------
-                    # ส่วนที่ 4: ตารางกลุ่มสรุปเงินท้ายเล่ม (บาลานซ์ช่องความกว้างใหม่รองรับคอลัมน์ที่เพิ่มขึ้น)
-                    # -------------------------------------------------------------------------
-                    grand_total_boq = sum(float(it.get("total_price", 0.0)) for it in items_list)
-                    
-                    # [UPDATED] เนื่องจากตารางขยับเพิ่มมาเป็น 7 คอลัมน์ แถวสรุปด้านล่างต้องสั่งยืด SPAN คลุมตั้งแต่คอลัมน์ 0 ถึง 4 (ลำดับ ถึง Unit)
+                        
+                    # เพิ่มแถวสรุปผลรวมท้ายตาราง (ขยาย SPAN ครอบคลุม 5 คอลัมน์แรกเพื่อให้ฝั่งซ้ายล่างตารางโล่งสะอาด)
                     table_data.append(["", "", "", "", "", Paragraph("<b>มูลค่ารวมทั้งสิ้น</b>", text_bold), Paragraph(f"<b>{grand_total_boq:,.2f}</b>", text_bold)])
-                    
-                    table_styles_list.append(('SPAN', (0, current_row_idx), (4, current_row_idx))) # SPAN 5 ช่องแรกฝั่งซ้ายเป็นช่องโล่ง
-                    table_styles_list.append(('BACKGROUND', (5, current_row_idx), (6, current_row_idx), colors.HexColor("#EAEAEA"))) 
+                    table_styles_list.append(('SPAN', (0, current_row_idx), (4, current_row_idx)))
+                    table_styles_list.append(('BACKGROUND', (5, current_row_idx), (6, current_row_idx), colors.HexColor("#EAEAEA")))
                     table_styles_list.append(('ALIGN', (5, current_row_idx), (5, current_row_idx), 'LEFT'))
                     table_styles_list.append(('ALIGN', (6, current_row_idx), (6, current_row_idx), 'RIGHT'))
-                    table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
-                    table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
-                    
                     table_styles_list.append(('LINEBEFORE', (0, current_row_idx), (0, current_row_idx), 0, colors.white))
                     table_styles_list.append(('LINEBELOW', (0, current_row_idx), (4, current_row_idx), 0, colors.white))
                     current_row_idx += 1
                     
-                    # [UPDATED] เกลี่ยสัดส่วนความกว้างใหม่เพื่อให้รองรับหน้ากระดาษความกว้างรวม 535 เท่าเดิมเป๊ะ:
-                    # [ลำดับ: 40, รหัสสินค้า: 65, รายการสินค้า: 185, จำนวน: 40, Unit: 35, ราคา/หน่วย: 85, จำนวนเงินรวม: 85]
+                    # กำหนดความกว้างตารางรวม 535 พอดีหน้า A4 คำว่า "ลำดับ" ไม่ตกหล่นแน่นอน
                     pdf_table = Table(table_data, colWidths=[40, 65, 185, 40, 35, 85, 85])
                     pdf_table.setStyle(TableStyle(table_styles_list))
                     story.append(pdf_table)
                     story.append(Spacer(1, 40))
 
-                    # -------------------------------------------------------------------------
-                    # ส่วนที่ 5: ช่องลงนามลายเซ็นท้ายเอกสาร (ปรับตำแหน่งจัดซื้อเป็นภาษาอังกฤษเรียบร้อย)
-                    # -------------------------------------------------------------------------
+                    # 4. ช่องเซ็นชื่อผู้อนุมัติ / ผู้เสนอราคา
                     signature_data = [
                         ["(......................................................)", "", "(......................................................)"],
                         [Paragraph("<b>(ผู้อนุมัติ)</b>", footer_style), "", Paragraph("<b>(ผู้เสนอราคา)</b>", footer_style)],
@@ -1404,14 +1359,10 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     ]
                     signature_table = Table(signature_data, colWidths=[230, 75, 230])
                     signature_table.setStyle(TableStyle([
-                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                        ('TOPPADDING', (0,0), (-1,-1), 1),
-                        ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+                        ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                        ('TOPPADDING', (0,0), (-1,-1), 1), ('BOTTOMPADDING', (0,0), (-1,-1), 1),
                     ]))
                     story.append(signature_table)
-
-                    # สั่งเซฟคอมไพล์เอกสาร
                     doc.build(story)
                     
                     # ปุ่มดาวน์โหลดเอกสาร PDF ขาออกไปใช้งานพริ้นต์จริง
