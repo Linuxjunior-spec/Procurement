@@ -1051,7 +1051,7 @@ elif main_menu == "🗂️ บริหาร Item Code":
                     st.rerun()
 
 # =========================================================================
-# 📝 จัดทำ BOQ เพื่อเสนอ (NEW FEATURE ฟังก์ชันรันเลข PUR- เจน PDF ขาออก)
+# 📝 จัดทำ BOQ เพื่อเสนอ (ปรับปรุงดึงข้อมูลผู้ร้องขอร่วมกับระบบ RFQ และอัปเดต PDF)
 # =========================================================================
 elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
     st.title("📝 ระบบจัดทำใบเสนอราคาและประมาณการ BOQ ขาออก")
@@ -1063,13 +1063,15 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
         if not st.session_state.pur_proposals:
             st.info("💡 ปัจจุบันยังไม่มีการสร้างเอกสารเสนอราคา PUR ในคลังระบบ")
         else:
+            # ตารางสรุปภาพรวมหน้ารวม
             summary_pur_data = []
             for proposal in st.session_state.pur_proposals:
                 total_proposal_price = sum(float(item.get("total_price", 0.0)) for item in proposal.get("items", []))
                 summary_pur_data.append({
                     "เลขที่ใบเสนอราคา": proposal["id"],
-                    "ชื่อโครงการ / ไซต์งาน": proposal.get("project_name", "-"),
+                    "ชื่อโครงการ / ไไซต์งาน": proposal.get("project_name", "-"),
                     "ชื่อลูกค้า / บริษัท": proposal.get("client_name", "-"),
+                    "ผู้ร้องขอโครงการ": proposal.get("requestor", "-"),  # เพิ่มการแสดงผลในตารางสรุป
                     "วันที่ออกเอกสาร": proposal.get("date", "-"),
                     "จำนวนรายการวัสดุ": len(proposal.get("items", [])),
                     "มูลค่ารวมสุทธิ (บาท)": total_proposal_price
@@ -1086,10 +1088,12 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
             if selected_pur_option:
                 target_pur_id = selected_pur_option.split(" | ")[0]
                 curr_pur_obj = next(p for p in st.session_state.pur_proposals if p["id"] == target_pur_id)
-                     
-                st.info(f"📁 **กำลังจัดการเอกสาร:** {curr_pur_obj['id']} | **โครงการ:** {curr_pur_obj['project_name']} | **ลูกค้า:** {curr_pur_obj['client_name']}")
+                
+                st.info(f"📁 **กำลังจัดการเอกสาร:** {curr_pur_obj['id']} | **โครงการ:** {curr_pur_obj['project_name']} | **ลูกค้า:** {curr_pur_obj['client_name']} | **ผู้ร้องขอ:** {curr_pur_obj.get('requestor', '-')}")
+                
+                # --- ส่วนลงรายละเอียด Line Items แยกย่อยภายในโครงการ ---
                 st.markdown("#### ➕ เพิ่มรายการวัสดุและคำนวณราคาลงใน BOQ เสนอราคา")
-                         
+                
                 if not st.session_state.item_codes_master:
                     st.error("⚠️ ต้องไปลงทะเบียนไอเทมที่หน้า 'บริหาร Item Code' ก่อนครับ")
                 else:
@@ -1098,7 +1102,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     
                     item_code_extracted = sel_item_choice.split("]")[0].replace("[", "")
                     master_item_ptr = next(i for i in st.session_state.item_codes_master if i["code"] == item_code_extracted)
-                     
+                    
                     col_l1, col_l2, col_l3 = st.columns(3)
                     with col_l1:
                         input_qty = st.number_input("ระบุจำนวน (Quantity)", min_value=0.0, step=1.0, value=1.0)
@@ -1106,14 +1110,14 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         input_mat_rate = st.number_input("ระบุราคาวัสดุเสนอขาย / หน่วย (บาท)", min_value=0.0, step=10.0, value=0.0)
                     with col_l3:
                         input_lab_rate = st.number_input("ระบุค่าแรงเสนอขาย / หน่วย (บาท)", min_value=0.0, step=10.0, value=0.0)
-                         
+                        
                     if st.button("➕ กดเพื่อเพิ่มลำดับวัสดุรายการนี้เข้า BOQ", use_container_width=True, type="primary"):
                         unit_rate_total = input_mat_rate + input_lab_rate
                         line_total_price = unit_rate_total * input_qty
-                                             
+                        
                         if "items" not in curr_pur_obj:
                             curr_pur_obj["items"] = []
-                                             
+                            
                         curr_pur_obj["items"].append({
                             "item_code": master_item_ptr["code"],
                             "item_name": master_item_ptr["item_name"],
@@ -1128,11 +1132,12 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         st.toast("เพิ่มรายการพัสดุเข้า BOQ สำเร็จ!", icon="✅")
                         st.rerun()
                         
+                # แสดงรายการตาราง Line Items ปัจจุบันภายในโปรเจกต์เสนอราคานี้
                 if curr_pur_obj.get("items"):
                     st.markdown("##### 📊 ตารางรายละเอียดวัสดุในใบเสนอราคาปัจจุบัน")
                     df_lines = pd.DataFrame(curr_pur_obj["items"])
                     df_lines.insert(0, "ลำดับที่", range(1, len(df_lines) + 1))
-                     
+                    
                     df_display_lines = df_lines[["ลำดับที่", "item_code", "item_name", "unit", "qty", "material_rate", "labor_rate", "unit_rate_total", "total_price"]]
                     df_display_lines.columns = ["ลำดับ", "รหัสวัสดุ", "รายละเอียดวัสดุ", "หน่วย", "จำนวน", "ราคาวัสดุ/หน่วย", "ค่าแรง/หน่วย", "ราคารวมต่อหน่วย", "ยอดรวมสุทธิ (บาท)"]
                     
@@ -1152,11 +1157,10 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกฉบับมาตรฐานจัดซื้อสากล ---
                     pdf_filename = f"Proposal_{curr_pur_obj['id']}.pdf"
                     pdf_path = os.path.join(BASE_DIR, pdf_filename)
-                                         
+                    
                     doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
                     styles = getSampleStyleSheet()
                     
-                    # [PRO-TIP] เพื่อป้องกันภาษาไทยสี่เหลี่ยม แนะนำดาวน์โหลดไฟล์ THSarabunNew.ttf มาตั้งคู่กับโปรแกรม
                     try:
                         pdfmetrics.registerFont(TTFont('THSarabunNew', os.path.join(BASE_DIR, 'THSarabunNew.ttf')))
                         title_style = ParagraphStyle('TitleStyle', fontName='THSarabunNew', fontSize=24, leading=26, alignment=1, spaceAfter=20)
@@ -1166,39 +1170,42 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=20, alignment=1, spaceAfter=20)
                         text_style = ParagraphStyle('TextStyle', fontName='Helvetica', fontSize=12)
                         font_to_use = 'Helvetica'
-                         
+                        
                     story = []
                     story.append(Paragraph(f"<b>PRICE PROPOSAL / BOQ SHEET</b>", title_style))
                     story.append(Paragraph(f"<b>Document ID (เลขที่ใบเสนอราคา):</b> {curr_pur_obj['id']}", text_style))
                     story.append(Paragraph(f"<b>Project Name (ชื่อโครงการ):</b> {curr_pur_obj['project_name']}", text_style))
                     story.append(Paragraph(f"<b>Client Name (ชื่อลูกค้า):</b> {curr_pur_obj['client_name']}", text_style))
+                    story.append(Paragraph(f"<b>Requestor (ผู้ร้องขอโครงการ):</b> {curr_pur_obj.get('requestor', '-')}", text_style))  # ดึงชื่อผู้ร้องขอไปใส่ใน PDF
                     story.append(Paragraph(f"<b>Date (วันที่ออกเอกสาร):</b> {curr_pur_obj['date']}", text_style))
                     story.append(Spacer(1, 15))
                     
+                    # โครงสร้างตารางเนื้อหาพัสดุในไฟล์ PDF
                     table_data = [["No.", "Item Code", "Description", "Unit", "Qty", "Unit Rate", "Total"]]
                     for i, it in enumerate(curr_pur_obj["items"]):
                         table_data.append([
                             str(i+1), it["item_code"], it["item_name"], it["unit"], f"{it['qty']:,.0f}", f"{it['unit_rate_total']:,.2f}", f"{it['total_price']:,.2f}"
                         ])
                     table_data.append(["", "", "", "", "", "GRAND TOTAL:", f"{grand_total_boq:,.2f}"])
-                                         
+                    
                     pdf_table = Table(table_data, colWidths=[25, 60, 200, 35, 35, 75, 80])
                     pdf_table.setStyle(TableStyle([
                         ('BACKGROUND', (0,0), (-1,0), colors.grey),
                         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
                         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                        ('ALIGN', (2,1), (2,-1), 'LEFT'),  # จัดชื่อพัสดุชิดซ้าย
-                        ('ALIGN', (-2,1), (-1,-1), 'RIGHT'), # จัดราคาสุทธิชิดขวา
+                        ('ALIGN', (2,1), (2,-1), 'LEFT'),  
+                        ('ALIGN', (-2,1), (-1,-1), 'RIGHT'), 
                         ('BOTTOMPADDING', (0,0), (-1,0), 6),
                         ('BACKGROUND', (0,1), (-1,-2), colors.beige),
                         ('GRID', (0,0), (-1,-2), 1, colors.black),
                         ('LINEABOVE', (0,-1), (-1,-1), 1.5, colors.black),
-                        ('FONTNAME', (0,0), (-1,-1), font_to_use) # [FIXED] เรียกใช้ตัวแปรชื่อฟอนต์ที่ลงทะเบียนได้จริง
+                        ('FONTNAME', (0,0), (-1,-1), font_to_use)
                     ]))
                     
                     story.append(pdf_table)
                     doc.build(story)
                     
+                    # ปุ่มดาวน์โหลดเอกสาร PDF ขาออกไปใช้งานพริ้นต์จริง
                     with open(pdf_path, "rb") as pdf_file:
                         st.download_button(
                             label="🖨️ ดาวน์โหลดใบเสนอราคาประมาณการรวมเป็นไฟล์ PDF",
@@ -1208,6 +1215,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                             use_container_width=True
                         )
                     
+                    # ปุ่มกดล้างหรือลบใบงาน PUR ชิ้นนี้ออกจากประวัติคลังข้อมูล
                     if st.button("🗑️ ลบเอกสารใบเสนอราคา PUR นี้ออกจากประวัติคลังข้อมูลทั้งหมด", type="primary"):
                         st.session_state.pur_proposals.remove(curr_pur_obj)
                         save_pur_proposals(st.session_state.pur_proposals)
@@ -1216,10 +1224,12 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
 
     with pur_tab2:
         st.subheader("🆕 บันทึกสร้างโปรเจกต์เอกสารเสนอราคา (ขาออก) ใบใหม่")
+        
         curr_year_short = datetime.now().strftime('%y') 
         curr_month = datetime.now().strftime('%m')      
         pur_prefix = f"PUR-{curr_year_short}{curr_month}" 
         
+        # นับจำนวนใบเสนอราคาในเดือนนี้ที่มีอยู่แล้วเพื่อรันตัวเลขต่อกัน
         count_pur_month = sum(1 for p in st.session_state.pur_proposals if p["id"].startswith(pur_prefix))
         auto_pur_id = f"{pur_prefix}{(count_pur_month + 1):04d}" 
         
@@ -1227,15 +1237,24 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
             new_pur_id = st.text_input("เลขที่ใบเสนอราคาอัตโนมัติ (PUR ID)", value=auto_pur_id)
             new_pur_project = st.text_input("ชื่อโครงการประมาณการเสนอราคา", placeholder="เช่น งานปรับปรุงสถานีชาร์จไฟรถยนต์ EV แผนกโรงงาน")
             new_pur_client = st.text_input("ชื่อลูกค้า / บริษัทผู้ว่าจ้าง", placeholder="เช่น บริษัท ควอด อิเลคทริค จำกัด")
+            
+            # --- [ADD] ดึงชุดข้อมูลรายชื่อผู้ร้องขอแบบเดียวกับหน้าระบบจัดการ RFQ มาใช้งานร่วมกัน ---
+            if not st.session_state.requestors_list:
+                st.error("⚠️ ยังไม่มีรายชื่อผู้ร้องขอในระบบ กรุณาเพิ่มรายชื่อในระบบจัดการ RFQ ก่อน")
+                selected_pur_requestor = None
+            else:
+                selected_pur_requestor = st.selectbox("เลือกผู้ร้องขอโครงการ (ดึงข้อมูลกลาง)", st.session_state.requestors_list)
+                
             new_pur_date = st.date_input("วันที่ลงเอกสารออกเสนอราคา", datetime.now())
             
             st.markdown("<br>", unsafe_allow_html=True)
             if st.form_submit_button("💾 เปิดเล่ม / บันทึกตั้งต้นเอกสารโปรเจกต์นี้"):
-                if new_pur_id and new_pur_project and new_pur_client:
+                if new_pur_id and new_pur_project and new_pur_client and selected_pur_requestor:
                     st.session_state.pur_proposals.append({
                         "id": new_pur_id.strip(),
                         "project_name": new_pur_project.strip(),
                         "client_name": new_pur_client.strip(),
+                        "requestor": selected_pur_requestor.strip(),  # บันทึกรายชื่อผู้ร้องขอลงฐานข้อมูล PUR
                         "date": new_pur_date.strftime('%d/%m/%Y'),
                         "items": []
                     })
@@ -1243,4 +1262,4 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     st.toast(f"🎉 เปิดเอกสารประมาณการเลขที่ {new_pur_id} เข้าสู่คลังเสนอราคาขาออกสำเร็จ!", icon="✅")
                     st.rerun()
                 else:
-                    st.error("❌ กรุณากรอกรหัสเอกสาร ชื่อโครงการ และชื่อบริษัทผู้ว่าจ้างให้ครบถ้วนก่อนส่ง")
+                    st.error("❌ กรุณากรอกรหัสเอกสาร ชื่อโครงการ ชื่อบริษัทผู้ว่าจ้าง และผู้ร้องขอให้ครบถ้วนก่อนส่ง")
