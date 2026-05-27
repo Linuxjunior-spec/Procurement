@@ -912,75 +912,152 @@ elif main_menu == "📊 BOQ Supplier":
                     else: r_c5.caption("❌ ไม่มีไฟล์แนบ")
 
     with boq_tab2:
-        st.markdown("### 🔍 ค้นหาประวัติราคาวัสดุและค่าแรงแยกรายการ (Historical Unit Rate Lookup)")
-        search_lay1, search_lay2 = st.columns([4, 1])
-        search_query = search_lay1.text_input("ค้นหา", placeholder="พิมพ์ชื่อรายการวัสดุหรือคีย์เวิร์ดที่ต้องการ เช่น CV 1C-150sq.mm", label_visibility="collapsed")
+        st.markdown("### 🔍 ค้นหาและบริหารจัดการประวัติราคาวัสดุ-ค่าแรงแยกรายการ")
+        st.caption("💡 พี่สามารถดับเบิ้ลคลิกแก้ไขราคาวัสดุ/ค่าแรงได้บนตารางโดยตรง หรือติ๊กถูกหน้ารายการเพื่อกดลบข้อมูลออกจากคลังได้ครับ")
         
-        all_item_records = []
-        for rfq in st.session_state.rfq_history:
-            for sup in rfq.get("suppliers", []):
-                for item in sup.get("items", []):
-                    all_item_records.append({
-                        "หมวดหมู่": item.get("category", "ทั่วไป"), "รายการวัสดุ": item.get("item_name", "-"),
-                        "ชื่อบริษัท/ผู้ขาย": sup["name"], "หน่วย": item.get("unit", "-"),
-                        "ราคาวัสดุ / หน่วย (บาท)": item.get("material_rate", 0.0), "ค่าแรง/หน่วย (บาท)": item.get("labor_rate", 0.0),
-                        "ราคารวมต่อหน่วย (บาท)": item.get("total_rate", 0.0), "วันที่อัปเดตราคา": item.get("date_updated", "-")
+        search_lay1, search_lay2 = st.columns([4, 1])
+        search_query = search_lay1.text_input("ค้นหาประวัติราคา", placeholder="พิมพ์ชื่อรายการวัสดุ หมวดหมู่ หรือชื่อร้านค้า เช่น CV 1C-150sq.mm", label_visibility="collapsed")
+        
+        # --- 1. รวบรวมข้อมูลจากทั่ง 2 แหล่ง (RFQ History และ Standalone Prices) มาทำ Flatten Index ---
+        flat_records = []
+        
+        # ดึงจากระบบ RFQ
+        for rfq_idx, rfq in enumerate(st.session_state.rfq_history):
+            for sup_idx, sup in enumerate(rfq.get("suppliers", [])):
+                for item_idx, item in enumerate(sup.get("items", [])):
+                    flat_records.append({
+                        "source_type": "rfq",
+                        "rfq_id": rfq["id"],
+                        "sup_name": sup["name"],
+                        "item_code": item.get("item_code", ""),
+                        "index_keys": (rfq_idx, sup_idx, item_idx), # ชี้พิกัดใน session_state
+                        "หมวดหมู่": item.get("category", "ทั่วไป"),
+                        "รายการวัสดุ": item.get("item_name", "-"),
+                        "ชื่อบริษัท/ผู้ขาย": sup["name"],
+                        "หน่วย": item.get("unit", "-"),
+                        "ราคาวัสดุ / หน่วย (บาท)": float(item.get("material_rate", 0.0)),
+                        "ค่าแรง/หน่วย (บาท)": float(item.get("labor_rate", 0.0)),
+                        "ราคารวมต่อหน่วย (บาท)": float(item.get("total_rate", 0.0)),
+                        "วันที่อัปเดตราคา": item.get("date_updated", "-"),
+                        "อ้างอิงแหล่งข้อมูล": f"RFQ: {rfq['id']}"
                     })
                     
-        for item in st.session_state.standalone_prices:
-            all_item_records.append({
-                "หมวดหมู่": item.get("category", "ทั่วไป"), "รายการวัสดุ": item.get("item_name", "-"),
-                "ชื่อบริษัท/ผู้ขาย": item.get("supplier_name", "-"), "หน่วย": item.get("unit", "-"),
-                "ราคาวัสดุ / หน่วย (บาท)": item.get("material_rate", 0.0), "ค่าแรง/หน่วย (บาท)": item.get("labor_rate", 0.0),
-                "ราคารวมต่อหน่วย (บาท)": item.get("total_rate", 0.0), "วันที่อัปเดตราคา": item.get("date_updated", "-")
+        # ดึงจากระบบราคาตรง (Standalone)
+        for sa_idx, item in enumerate(st.session_state.standalone_prices):
+            flat_records.append({
+                "source_type": "standalone",
+                "index_keys": sa_idx, # ชี้พิกัดตำแหน่งใน list
+                "หมวดหมู่": item.get("category", "ทั่วไป"),
+                "รายการวัสดุ": item.get("item_name", "-"),
+                "ชื่อบริษัท/ผู้ขาย": item.get("supplier_name", "-"),
+                "หน่วย": item.get("unit", "-"),
+                "ราคาวัสดุ / หน่วย (บาท)": float(item.get("material_rate", 0.0)),
+                "ค่าแรง/หน่วย (บาท)": float(item.get("labor_rate", 0.0)),
+                "ราคารวมต่อหน่วย (บาท)": float(item.get("total_rate", 0.0)),
+                "วันที่อัปเดตราคา": item.get("date_updated", "-"),
+                "อ้างอิงแหล่งข้อมูล": "Standalone (คลังตรง)"
             })
-                    
-        if not all_item_records: st.info("💡 ปัจจุบันยังไม่มีข้อมูลรายการวัสดุแยกย่อยในคลังระบบ")
+            
+        if not flat_records:
+            st.info("💡 ปัจจุบันยังไม่มีข้อมูลรายการวัสดุแยกย่อยในคลังระบบ")
         else:
-            filtered_records = all_item_records
+            # ทำการกรองข้อมูลตาม Keyword ค้นหา
             if search_query:
                 q = search_query.strip().lower()
-                filtered_records = [r for r in all_item_records if q in r["รายการวัสดุ"].lower() or q in r["หมวดหมู่"].lower() or q in r["ชื่อบริษัท/ผู้ขาย"].lower()]
+                filtered_records = [r for r in flat_records if q in r["รายการวัสดุ"].lower() or q in r["หมวดหมู่"].lower() or q in r["ชื่อบริษัท/ผู้ขาย"].lower()]
+            else:
+                filtered_records = flat_records
                 
             st.markdown(f"พบรายการราคาวัสดุทั้งหมด **{len(filtered_records)}** แถวข้อมูล")
-            if filtered_records:
-                df_search_result = pd.DataFrame(filtered_records)[["หมวดหมู่", "รายการวัสดุ", "ชื่อบริษัท/ผู้ขาย", "หน่วย", "ราคาวัสดุ / หน่วย (บาท)", "ค่าแรง/หน่วย (บาท)", "ราคารวมต่อหน่วย (บาท)", "วันที่อัปเดตราคา"]]
-                st.dataframe(df_search_result, use_container_width=True, hide_index=True, column_config={"ราคาวัสดุ / หน่วย (บาท)": st.column_config.NumberColumn(format="%.2f"), "ค่าแรง/หน่วย (บาท)": st.column_config.NumberColumn(format="%.2f"), "ราคารวมต่อหน่วย (บาท)": st.column_config.NumberColumn(format="%.2f")})
-
-    with boq_tab3:
-        st.markdown("### ➕ บันทึกข้อมูลวัสดุตรงเข้าคลังราคา (ไม่อ้างอิงใบงาน RFQ)")
-        if not st.session_state.item_codes_master: st.error("⚠️ ยังไม่มีฐานข้อมูลวัสดุกลาง")
-        else:
-            form_layout_c1, form_layout_c2 = st.columns([2, 1])
-            with form_layout_c1:
-                with st.form("standalone_input_form", clear_on_submit=True):
-                    if not st.session_state.suppliers_master:
-                        st.error("⚠️ ยังไม่มีรายชื่อ Supplier ในระบบ")
-                        selected_sup_name = None
-                    else: selected_sup_name = st.selectbox("ชื่อบริษัท / ผู้ขาย", [s["name"] for s in st.session_state.suppliers_master])
+            
+            # แปลงเป็น DataFrame เพื่อส่งเข้า Data Editor
+            df_history = pd.DataFrame(filtered_records)
+            
+            # สร้างคอลัมน์ "เลือกสำหรับลบ" ไว้นำหน้าสุดของตาราง
+            df_history.insert(0, "เลือกเพื่อลบ 🗑️", False)
+            
+            # คอลัมน์ที่ต้องการแสดงผลให้ผู้ใช้เห็น
+            show_cols = ["เลือกเพื่อลบ 🗑️", "หมวดหมู่", "รายการวัสดุ", "ชื่อบริษัท/ผู้ขาย", "หน่วย", "ราคาวัสดุ / หน่วย (บาท)", "ค่าแรง/หน่วย (บาท)", "ราคารวมต่อหน่วย (บาท)", "วันที่อัปเดตราคา", "อ้างอิงแหล่งข้อมูล"]
+            
+            # --- 2. การจัดโครงสร้างตารางด้วย st.data_editor (เปิดโหมดแก้ไข + มีลูกน้ำ) ---
+            edited_df = st.data_editor(
+                df_history[show_cols],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "เลือกเพื่อลบ 🗑️": st.column_config.CheckboxColumn(required=True),
+                    "หมวดหมู่": st.column_config.TextColumn(disabled=True), # ล็อกไว้ห้ามแก้ตรงนี้ ให้ไปแก้ที่มาสเตอร์
+                    "รายการวัสดุ": st.column_config.TextColumn(disabled=True),
+                    "ชื่อบริษัท/ผู้ขาย": st.column_config.TextColumn(disabled=True),
+                    "หน่วย": st.column_config.TextColumn(disabled=True),
+                    "อ้างอิงแหล่งข้อมูล": st.column_config.TextColumn(disabled=True),
+                    # เปิดโหมดตัวเลข พ่วงระบบใส่ลูกน้ำคั่นหลักพัน (%,.2f) 
+                    "ราคาวัสดุ / หน่วย (บาท)": st.column_config.NumberColumn(format="%,.2f", min_value=0.0),
+                    "ค่าแรง/หน่วย (บาท)": st.column_config.NumberColumn(format="%,.2f", min_value=0.0),
+                    "ราคารวมต่อหน่วย (บาท)": st.column_config.NumberColumn(format="%,.2f", disabled=True) # ตัวนี้ล็อกไว้ให้ระบบคำนวณใหม่ตอนเซฟ
+                }
+            )
+            
+            # --- 3. ปุ่มกดเพื่อประมวลผลเซฟการเปลี่ยนแปลงหรือสั่งลบข้อมูล ---
+            c_act1, c_act2 = st.columns([1, 4])
+            
+            # เช็กว่ามีการติ๊กถูกในตารางบ้างไหม
+            any_checked = edited_df["เลือกเพื่อลบ 🗑️"].any()
+            
+            if any_checked:
+                # แสดงปุ่มแดงสำหรับสั่งลบแถวที่เลือก
+                if c_act1.button("🗑️ ยืนยันการลบแถวที่ติ๊กเลือก", type="primary", use_container_width=True):
+                    checked_indices = edited_df[edited_df["เลือกเพื่อลบ 🗑️"] == True].index
                     
-                    item_choices_boq = [f"[{i['code']}] {i['item_name']}" for i in st.session_state.item_codes_master]
-                    selected_item_boq = st.selectbox("เลือกรายการวัสดุ (Item Code Center)", item_choices_boq)
-                    target_code_boq = selected_item_boq.split("]")[0].replace("[", "")
-                    item_master_boq_obj = next(i for i in st.session_state.item_codes_master if i["code"] == target_code_boq)
-                    
-                    st.caption(f"💡 หมวดหมู่: `{item_master_boq_obj['category']}` | หน่วย: `{item_master_boq_obj['unit']}`")
-                    st_mat_rate = st.number_input("ราคาวัสดุหน่วย (บาท)", min_value=0.0, step=0.01, format="%.2f")
-                    st_lab_rate = st.number_input("ค่าแรงต่อหน่วย (บาท)", min_value=0.0, step=0.01, format="%.2f")
-                    st_date = st.date_input("วันที่ได้รับราคา", datetime.now())
-                    
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.form_submit_button("🟩 บันทึกข้อมูลเข้าคลังราคา"):
-                        if selected_sup_name:
-                            st.session_state.standalone_prices.append({
-                                "item_code": item_master_boq_obj["code"], "category": item_master_boq_obj["category"],
-                                "item_name": item_master_boq_obj["item_name"], "supplier_name": selected_sup_name,
-                                "unit": item_master_boq_obj["unit"], "material_rate": st_mat_rate, "labor_rate": st_lab_rate,
-                                "total_rate": st_mat_rate + st_lab_rate, "date_updated": st_date.strftime('%d/%m/%Y')
-                            })
-                            save_standalone_prices(st.session_state.standalone_prices)
-                            st.success(f"💾 จัดเก็บเรียบร้อย!")
-                            st.rerun()
+                    # วิ่งลบย้อนกลับจากหลังมาหน้าเพื่อไม่ให้ Index คลาดเคลื่อน
+                    for idx in sorted(checked_indices, reverse=True):
+                        orig_row = filtered_records[idx]
+                        
+                        if orig_row["source_type"] == "rfq":
+                            r_idx, s_idx, i_idx = orig_row["index_keys"]
+                            st.session_state.rfq_history[r_idx]["suppliers"][s_idx]["items"].pop(i_idx)
+                        elif orig_row["source_type"] == "standalone":
+                            sa_idx = orig_row["index_keys"]
+                            st.session_state.standalone_prices.pop(sa_idx)
+                            
+                    # บันทึกลงไฟล์ฐานข้อมูลจริง
+                    save_data(st.session_state.rfq_history)
+                    save_standalone_prices(st.session_state.standalone_prices)
+                    st.toast("ลบข้อมูลราคาออกจากคลังเรียบร้อยแล้ว!", icon="🗑️")
+                    st.rerun()
+            
+            # ตรวจสอบการแก้ไขตัวเลขราคาในตาราง (เช็กว่าตัวเลขเปลี่ยนจากเดิมไหม)
+            # เปรียบเทียบคอลัมน์ราคาวัสดุและค่าแรง
+            mat_changed = (edited_df["ราคาวัสดุ / หน่วย (บาท)"] != df_history["ราคาวัสดุ / หน่วย (บาท)"])
+            lab_changed = (edited_df["ค่าแรง/หน่วย (บาท)"] != df_history["ค่าแรง/หน่วย (บาท)"])
+            
+            if mat_changed.any() or lab_changed.any():
+                if c_act2.button("💾 บันทึกการแก้ไขราคาทั้งหมดบนตาราง", use_container_width=True):
+                    # วิ่งลูปตรวจสอบว่าแถวไหนโดนแก้ราคาบ้าง
+                    for idx in range(len(edited_df)):
+                        new_mat = float(edited_df.iloc[idx]["ราคาวัสดุ / หน่วย (บาท)"])
+                        new_lab = float(edited_df.iloc[idx]["ค่าแรง/หน่วย (บาท)"])
+                        orig_row = filtered_records[idx]
+                        
+                        if orig_row["source_type"] == "rfq":
+                            r_idx, s_idx, i_idx = orig_row["index_keys"]
+                            target_item = st.session_state.rfq_history[r_idx]["suppliers"][s_idx]["items"][i_idx]
+                            target_item["material_rate"] = new_mat
+                            target_item["labor_rate"] = new_lab
+                            target_item["total_rate"] = new_mat + new_lab
+                            target_item["date_updated"] = datetime.now().strftime('%d/%m/%Y')
+                        elif orig_row["source_type"] == "standalone":
+                            sa_idx = orig_row["index_keys"]
+                            target_item = st.session_state.standalone_prices[sa_idx]
+                            target_item["material_rate"] = new_mat
+                            target_item["labor_rate"] = new_lab
+                            target_item["total_rate"] = new_mat + new_lab
+                            target_item["date_updated"] = datetime.now().strftime('%d/%m/%Y')
+                            
+                    save_data(st.session_state.rfq_history)
+                    save_standalone_prices(st.session_state.standalone_prices)
+                    st.toast("อัปเดตแก้ไขตัวเลขราคาในระบบสำเร็จ!", icon="✅")
+                    st.rerun()
 
 # =========================================================================
 # 🗂️ บริหาร Item Code (เวอร์ชันมาตรฐานจัดซื้อ: เก็บเฉพาะข้อมูลสารบบวัสดุกลาง ไม่เก็บราคา)
