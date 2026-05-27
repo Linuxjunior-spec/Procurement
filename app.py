@@ -1102,9 +1102,9 @@ elif main_menu == "🗂️ บริหาร Item Code":
                 use_container_width=True, 
                 hide_index=True,
                 column_config={
-                    "ราคาวัสดุประเมิน/หน่วย": st.column_config.NumberColumn(format="%.2f"),
-                    "ค่าแรงประเมิน/หน่วย": st.column_config.NumberColumn(format="%.2f"),
-                    "ราคารวมประเมิน/หน่วย": st.column_config.NumberColumn(format="%.2f")
+                    "ราคาวัสดุประเมิน/หน่วย": st.column_config.NumberColumn(format="%,.2f"),
+                    "ค่าแรงประเมิน/หน่วย": st.column_config.NumberColumn(format="%,.2f"),
+                    "ราคารวมประเมิน/หน่วย": st.column_config.NumberColumn(format="%,.2f")
                 }
             )
             
