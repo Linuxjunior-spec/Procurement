@@ -1154,83 +1154,172 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     grand_total_boq = df_lines["total_price"].sum()
                     st.markdown(f"<h3 style='text-align: right; color:#00ffcc;'>💰 ยอดรวมมูลค่าเอกสารทั้งสิ้น: {grand_total_boq:,.2f} บาท</h3>", unsafe_allow_html=True)
                     
-                    # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกฉบับมาตรฐานจัดซื้อสากล ---
+                    # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกตามรูปแบบ Excel ที่กำหนด ---
                     pdf_filename = f"Proposal_{curr_pur_obj['id']}.pdf"
                     pdf_path = os.path.join(BASE_DIR, pdf_filename)
                     
-                    doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+                    # กำหนดระยะขอบให้กว้างพอดีกับตาราง 8 คอลัมน์
+                    doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=25)
                     styles = getSampleStyleSheet()
                     
+                    # ลงทะเบียนฟอนต์ DB Heavent
                     try:
                         font_file_path = os.path.join(BASE_DIR, 'DB Heavent v3.2.2.ttf')
                         pdfmetrics.registerFont(TTFont('DBHeavent', font_file_path))
                         
-                        # [ADJUSTED] ปรับลดขนาดอักษรลงมาเล็กน้อย และขยาย leading ให้กว้างขึ้นเพื่อบาลานซ์ช่องไฟไทย-อังกฤษ
-                        title_style = ParagraphStyle('TitleStyle', fontName='DBHeavent', fontSize=24, leading=26, alignment=1, spaceAfter=20)
-                        text_style = ParagraphStyle('TextStyle', fontName='DBHeavent', fontSize=15, leading=20) # เพิ่มความสูงบรรทัดเป็น 20
-                        
-                        # สร้างสไตล์พิเศษสำหรับตัวหนังสือหัวตารางและตัวเลขท้ายตารางโดยเฉพาะ เพื่อคุมสัดส่วน
-                        header_style = ParagraphStyle('HeaderStyle', fontName='DBHeavent', fontSize=14, leading=16, alignment=1)
+                        title_style = ParagraphStyle('TitleStyle', fontName='DBHeavent', fontSize=22, leading=24, alignment=1, textColor=colors.HexColor("#006633"))
+                        text_style = ParagraphStyle('TextStyle', fontName='DBHeavent', fontSize=14, leading=16)
+                        text_bold = ParagraphStyle('TextBold', fontName='DBHeavent', fontSize=14, leading=16)
+                        header_style = ParagraphStyle('HeaderStyle', fontName='DBHeavent', fontSize=13, leading=15, alignment=1)
+                        cat_style = ParagraphStyle('CatStyle', fontName='DBHeavent', fontSize=14, leading=16, alignment=1)
                         font_to_use = 'DBHeavent'
                     except Exception as e:
-                        st.error(f"⚠️ ไม่พบไฟล์ฟอนต์ 'DB Heavent v3.2.2.ttf' ในโฟลเดอร์โปรแกรม ระบบจะสลับไปใช้ฟอนต์มาตรฐานแทน: {e}")
-                        title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=20, alignment=1, spaceAfter=20)
-                        text_style = ParagraphStyle('TextStyle', fontName='Helvetica', fontSize=12)
-                        header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=11, alignment=1)
+                        st.error(f"⚠️ ไม่พบไฟล์ฟอนต์ 'DB Heavent v3.2.2.ttf' ระบบจะใช้ฟอนต์มาตรฐานแทน: {e}")
+                        title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=18, alignment=1)
+                        text_style = ParagraphStyle('TextStyle', fontName='Helvetica', fontSize=11)
+                        text_bold = ParagraphStyle('TextBold', fontName='Helvetica-Bold', fontSize=11)
+                        header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=10, alignment=1)
+                        cat_style = ParagraphStyle('CatStyle', fontName='Helvetica-Bold', fontSize=11, alignment=1)
                         font_to_use = 'Helvetica'
                         
                     story = []
-                    story.append(Paragraph(f"<b>PRICE PROPOSAL / BOQ SHEET</b>", title_style))
-                    story.append(Paragraph(f"<b>Document ID (เลขที่ใบเสนอราคา):</b> {curr_pur_obj['id']}", text_style))
-                    story.append(Paragraph(f"<b>Project Name (ชื่อโครงการ):</b> {curr_pur_obj['project_name']}", text_style))
-                    story.append(Paragraph(f"<b>Client Name (ชื่อลูกค้า):</b> {curr_pur_obj['client_name']}", text_style))
-                    story.append(Paragraph(f"<b>Requestor (ผู้ร้องขอโครงการ):</b> {curr_pur_obj.get('requestor', '-')}", text_style))
-                    story.append(Paragraph(f"<b>Date (วันที่ออกเอกสาร):</b> {curr_pur_obj['date']}", text_style))
-                    story.append(Spacer(1, 15))
                     
-                    # --- โครงสร้างตารางเนื้อหาพัสดุในไฟล์ PDF ---
-                    # ครอบหัวตารางทั้งหมดด้วย Paragraph เพื่อให้คุมขนาดฟอนต์ได้เท่ากัน 100% ไม่หลุดสัดส่วน
+                    # 1. แถบหัวข้อใหญ่สีเขียวด้านบนสุด (ใบสอบสินค้า)
+                    title_banner_data = [[Paragraph("<b>ใบสอบราคาสินค้า</b>", title_style)]]
+                    title_banner_table = Table(title_banner_data, colWidths=[545])
+                    title_banner_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#C2EABD")), # สีเขียวอ่อนแบบในตัวอย่าง
+                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                        ('GRID', (0,0), (-1,-1), 1, colors.black),
+                        ('TOPPADDING', (0,0), (-1,-1), 8),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                    ]))
+                    story.append(title_banner_table)
+                    story.append(Spacer(1, 4))
+                    
+                    # 2. ส่วนหัวข้อมูลลูกค้า และ เลขที่เอกสาร/ผู้ร้องขอ (แบบตาราง Excel ด้านบน)
+                    header_block_data = [
+                        [Paragraph(f"<b>{curr_pur_obj.get('client_name', '-')}</b>", text_bold), "", "", Paragraph("<b>เลขที่ :</b>", text_style), Paragraph(curr_pur_obj['id'], text_bold)],
+                        [Paragraph("29 อาคารวานิสสา ทาวเวอร์ บี ชั้นที่ 11 ห้อง เอ-บี ซอยชิดลม", text_style), "", "", Paragraph("<b>PR Refer :</b>", text_style), Paragraph("-", text_style)],
+                        [Paragraph("ถนนเพลินจิต แขวงลุมพินี เขตปทุมวัน กรุงเทพมหานคร 10330", text_style), "", "", Paragraph("<b>Requestor :</b>", text_style), Paragraph(curr_pur_obj.get('requestor', '-'), text_style)]
+                    ]
+                    # กว้างรวม 545 (กว้างเต็มหน้า A4 แนวตั้งหลังจากหักขอบออกฝั่งละ 25)
+                    header_block_table = Table(header_block_data, colWidths=[120, 150, 105, 70, 100])
+                    header_block_table.setStyle(TableStyle([
+                        ('SPAN', (0,0), (2,0)), # ยุบรวมฝั่งซ้ายของแถวที่ 1
+                        ('SPAN', (0,1), (2,1)), # ยุบรวมฝั่งซ้ายของแถวที่ 2
+                        ('SPAN', (0,2), (2,2)), # ยุบรวมฝั่งซ้ายของแถวที่ 3
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CCCCCC")), # เส้นตารางสีเทาอ่อนแบบตารางบาง
+                        ('TOPPADDING', (0,0), (-1,-1), 4),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                    ]))
+                    story.append(header_block_table)
+                    story.append(Spacer(1, 10))
+                    
+                    # 3. ตารางข้อมูลรายละเอียดราคาสินค้าหลัก
+                    # กำหนดหัวข้อคอลัมน์ตาม Excel
                     table_data = [[
                         Paragraph("<b>No.</b>", header_style),
-                        Paragraph("<b>Item Code</b>", header_style),
-                        Paragraph("<b>Description</b>", header_style),
+                        Paragraph("<b>Item</b>", header_style),
+                        Paragraph("<b>Q'ty</b>", header_style),
                         Paragraph("<b>Unit</b>", header_style),
-                        Paragraph("<b>Qty</b>", header_style),
-                        Paragraph("<b>Unit Rate</b>", header_style),
-                        Paragraph("<b>Total</b>", header_style)
+                        Paragraph("<b>Price</b>", header_style),
+                        Paragraph("<b>Amount</b>", header_style),
+                        Paragraph("<b>ยี่ห้อ / รุ่น</b>", header_style),
+                        Paragraph("<b>Remark</b>", header_style)
                     ]]
                     
-                    for i, it in enumerate(curr_pur_obj["items"]):
-                        # ครอบข้อมูลทุกช่องในแถวตารางด้วย Paragraph เพื่อบังคับใช้ text_style ชุดเดียวกันทั้งหมด
-                        no_p = Paragraph(str(i+1), text_style)
-                        code_p = Paragraph(it["item_code"], text_style)
-                        desc_p = Paragraph(it["item_name"], text_style)
-                        unit_p = Paragraph(it["unit"], text_style)
-                        qty_p = Paragraph(f"{it['qty']:,.0f}", text_style)
-                        rate_p = Paragraph(f"{it['unit_rate_total']:,.2f}", text_style)
-                        total_p = Paragraph(f"{it['total_price']:,.2f}", text_style)
-                        
-                        table_data.append([no_p, code_p, desc_p, unit_p, qty_p, rate_p, total_p])
-                        
-                    grand_total_label = Paragraph("<b>GRAND TOTAL:</b>", text_style)
-                    grand_total_val = Paragraph(f"<b>{grand_total_boq:,.2f}</b>", text_style)
-                    table_data.append(["", "", "", "", "", grand_total_label, grand_total_val])
-                    
-                    pdf_table = Table(table_data, colWidths=[25, 60, 200, 35, 35, 75, 80])
-                    pdf_table.setStyle(TableStyle([
-                        ('BACKGROUND', (0,0), (-1,0), colors.grey),
-                        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), # จัดตำแหน่งข้อความทุกลำดับให้อยู่กึ่งกลางแนวดิ่ง
+                    # สไตล์สำหรับแถวหัวข้อหมวดหมู่พัสดุ (แถวสีเขียวอ่อนตัดขวางตาราง)
+                    table_styles_list = [
+                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#FCE4D6")), # สีหัวคอลัมน์หลัก (ออกครีม/ส้มสว่างแบบในภาพ)
+                        ('GRID', (0,0), (-1,-1), 1, colors.black),
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
                         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                        ('ALIGN', (2,1), (2,-2), 'LEFT'),  
-                        ('ALIGN', (-2,1), (-1,-1), 'RIGHT'), 
-                        ('TOPPADDING', (0,0), (-1,-1), 8),    # เพิ่มเนื้อที่ขอบบนของช่องตาราง
-                        ('BOTTOMPADDING', (0,0), (-1,-1), 8), # เพิ่มเนื้อที่ขอบล่างของช่องตาราง
-                        ('BACKGROUND', (0,1), (-1,-2), colors.beige),
-                        ('GRID', (0,0), (-1,-2), 1, colors.black),
-                        ('LINEABOVE', (0,-1), (-1,-1), 1.5, colors.black),
-                        ('FONTNAME', (0,0), (-1,-1), font_to_use)
-                    ]))
+                        ('TOPPADDING', (0,0), (-1,0), 6),
+                        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+                    ]
+                    
+                    # ดึงกลุ่มรายการทั้งหมดมาจัดแยกกลุ่มแยกตามหมวดหมู่ (Category)
+                    items_list = curr_pur_obj.get("items", [])
+                    
+                    # แตกกลุ่มข้อมูลตามหมวดหมู่พัสดุ
+                    categories_in_doc = []
+                    for it in items_list:
+                        # หาหมวดหมู่พัสดุ ถ้าไม่มีให้ดึงค่า 'ทั่วไป' หรือเช็คจากมาสเตอร์ไอเทม
+                        cat_name = it.get("category")
+                        if not cat_name:
+                            # ป้องกันเคสข้อมูลเก่าไม่มีฟีลด์ category ให้ไปเสิร์ชหาจาก item_codes_master
+                            match_master = next((m for m in st.session_state.item_codes_master if m["code"] == it["item_code"]), None)
+                            cat_name = match_master["category"] if match_master else "ทั่วไป"
+                        if cat_name not in categories_in_doc:
+                            categories_in_doc.append(cat_name)
+                    
+                    current_row_idx = 1 # ตัวนับแถวจริงของตาราง ReportLab สำหรับทำ Style สีพื้นหลัง
+                    
+                    for cat in categories_in_doc:
+                        # กรองเอาเฉพาะไอเทมที่อยู่ในกลุ่มหมวดหมู่นี้ออกมาทำตาราง
+                        cat_items = []
+                        for it in items_list:
+                            cat_name = it.get("category") or next((m["category"] for m in st.session_state.item_codes_master if m["code"] == it["item_code"]), "ทั่วไป")
+                            if cat_name == cat:
+                                cat_items.append(it)
+                                
+                        # เพิ่มแถวสีเขียวบอกชื่อหมวดหมู่ชิ้นงาน (เช่น สายไฟ, สาย Lan)
+                        cat_row = [Paragraph(f"<b>{cat}</b>", cat_style), "", "", "", "", "", "", ""]
+                        table_data.append(cat_row)
+                        
+                        # สั่งยุบคอลัมน์ตารางทั้งหมดในแถวนี้ให้แสดงผลเป็นช่องยาวช่องเดียว
+                        table_styles_list.append(('SPAN', (0, current_row_idx), (-1, current_row_idx)))
+                        table_styles_list.append(('BACKGROUND', (0, current_row_idx), (-1, current_row_idx), colors.HexColor("#C2EABD"))) # พื้นหลังหมวดหมู่สีเขียวอ่อน
+                        table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
+                        table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
+                        current_row_idx += 1
+                        
+                        # ลูปพิมพ์ข้อมูลไอเทมรายชิ้นงานด้านในหมวดหมู่นั้น ๆ (รันเลข No. เริ่มที่ 1 ใหม่เสมอตามภาพ)
+                        for item_no, it in enumerate(cat_items, 1):
+                            no_p = Paragraph(str(item_no), text_style)
+                            item_p = Paragraph(it["item_name"], text_style)
+                            qty_p = Paragraph(f"{it['qty']:,.0f}", text_style)
+                            unit_p = Paragraph(it["unit"], text_style)
+                            
+                            # คำนวณราคาสุทธิ
+                            unit_rate = float(it.get("unit_rate_total", it.get("material_rate", 0.0) + it.get("labor_rate", 0.0)))
+                            total_line_price = unit_rate * float(it["qty"])
+                            
+                            rate_p = Paragraph(f"{unit_rate:,.2f}", text_style)
+                            amount_p = Paragraph(f"{total_line_price:,.2f}", text_style)
+                            
+                            # ดึงข้อมูลแบรนด์/ยี่ห้อ และหมายเหตุ (ถ้ายังไม่ได้ลงไว้ในฐานข้อมูลคลังให้โชว์เป็นค่าว่างหรือเครื่องหมายขีด)
+                            brand_p = Paragraph(it.get("brand", "-"), text_style)
+                            remark_p = Paragraph(it.get("remark", ""), text_style)
+                            
+                            table_data.append([no_p, code_p, item_p, qty_p, unit_p, rate_p, amount_p, brand_p, remark_p])
+                            
+                            # จัดฝั่งซ้าย-ขวาช่องข้อมูล
+                            table_styles_list.append(('ALIGN', (2, current_row_idx), (2, current_row_idx), 'LEFT')) # ชื่อสินค้าชิดซ้าย
+                            table_styles_list.append(('ALIGN', (5, current_row_idx), (6, current_row_idx), 'RIGHT')) # ราคาและยอดรวมชิดขวา
+                            table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 4))
+                            table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 4))
+                            current_row_idx += 1
+                            
+                    # 4. เพิ่มแถวสรุปผลรวมเงินสุทธิ (GRAND TOTAL) ท้ายสุดของตารางแบบ Excel
+                    total_label = Paragraph("<b>Total</b>", header_style)
+                    total_value = Paragraph(f"<b>{grand_total_boq:,.2f}</b>", header_style)
+                    table_data.append([total_label, "", "", "", "", total_value, "", ""])
+                    
+                    # สั่งยุบรวมช่อง Total ฝั่งซ้ายให้ยาวมาถึงคอลัมน์ Price หน้าช่องตัวเลขยอดรวมสุทธิ
+                    table_styles_list.append(('SPAN', (0, current_row_idx), (4, current_row_idx)))
+                    table_styles_list.append(('BACKGROUND', (0, current_row_idx), (-1, current_row_idx), colors.HexColor("#FFF2CC"))) # พื้นหลังแถวรวมเงินสีเหลืองอ่อนสว่าง
+                    table_styles_list.append(('ALIGN', (0, current_row_idx), (0, current_row_idx), 'CENTER'))
+                    table_styles_list.append(('ALIGN', (5, current_row_idx), (5, current_row_idx), 'RIGHT'))
+                    table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
+                    table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
+                    
+                    # ความกว้างคอมพิวเตอร์หน้าคำนวณสัดส่วนตาราง 8 คอลัมน์ (รวมเท่ากับ 545 พอดีเป๊ะ)
+                    pdf_table = Table(table_data, colWidths=[25, 230, 35, 35, 55, 65, 50, 50])
+                    pdf_table.setStyle(TableStyle(table_styles_list))
                     
                     story.append(pdf_table)
                     doc.build(story)
