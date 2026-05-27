@@ -1180,13 +1180,26 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(Paragraph(f"<b>Date (วันที่ออกเอกสาร):</b> {curr_pur_obj['date']}", text_style))
                     story.append(Spacer(1, 15))
                     
-                    # โครงสร้างตารางเนื้อหาพัสดุในไฟล์ PDF
+                    # --- ปรับปรุงโครงสร้างตารางเนื้อหาพัสดุให้รองรับภาษาไทย 100% ---
                     table_data = [["No.", "Item Code", "Description", "Unit", "Qty", "Unit Rate", "Total"]]
+                    
                     for i, it in enumerate(curr_pur_obj["items"]):
+                        # ใช้ Paragraph ครอบข้อความใน Description เพื่อให้ยอมรับฟอนต์ภาษาไทยและตัดบรรทัดอัตโนมัติ
+                        desc_paragraph = Paragraph(it["item_name"], text_style)
+                        
                         table_data.append([
-                            str(i+1), it["item_code"], it["item_name"], it["unit"], f"{it['qty']:,.0f}", f"{it['unit_rate_total']:,.2f}", f"{it['total_price']:,.2f}"
+                            str(i+1), 
+                            it["item_code"], 
+                            desc_paragraph, # เปลี่ยนจากข้อความธรรมดาเป็นวัตถุ Paragraph ที่ใส่ฟอนต์ไทยแล้ว
+                            it["unit"], 
+                            f"{it['qty']:,.0f}", 
+                            f"{it['unit_rate_total']:,.2f}", 
+                            f"{it['total_price']:,.2f}"
                         ])
-                    table_data.append(["", "", "", "", "", "GRAND TOTAL:", f"{grand_total_boq:,.2f}"])
+                        
+                    # สำหรับแถวสรุปผลรวมท้ายตาราง
+                    grand_total_label = Paragraph("<b>GRAND TOTAL:</b>", text_style)
+                    table_data.append(["", "", "", "", "", grand_total_label, f"{grand_total_boq:,.2f}"])
                     
                     pdf_table = Table(table_data, colWidths=[25, 60, 200, 35, 35, 75, 80])
                     pdf_table.setStyle(TableStyle([
