@@ -1161,12 +1161,19 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
                     styles = getSampleStyleSheet()
                     
+                    # --- [UPDATE] อัปเดตลงทะเบียนฟอนต์ใหม่เป็น DB Heavent v3.2.2 ---
                     try:
-                        pdfmetrics.registerFont(TTFont('THSarabunNew', os.path.join(BASE_DIR, 'THSarabunNew.ttf')))
-                        title_style = ParagraphStyle('TitleStyle', fontName='THSarabunNew', fontSize=24, leading=26, alignment=1, spaceAfter=20)
-                        text_style = ParagraphStyle('TextStyle', fontName='THSarabunNew', fontSize=14, leading=16)
-                        font_to_use = 'THSarabunNew'
-                    except:
+                        # ค้นหาไฟล์พิกัดฟอนต์ DB Heavent ในโฟลเดอร์โปรแกรม
+                        font_file_path = os.path.join(BASE_DIR, 'DB Heavent v3.2.2.ttf')
+                        pdfmetrics.registerFont(TTFont('DBHeavent', font_file_path))
+                        
+                        # กำหนดสไตล์โดยตั้งค่านำฟอนต์ DBHeavent ไปใช้งาน (ฟอนต์ประเภทนี้มักจะมีขนาดค่อนข้างผอมบาง แนะนำให้เพิ่ม fontSize ขึ้นเล็กน้อยเพื่อให้อ่านง่ายครับ)
+                        title_style = ParagraphStyle('TitleStyle', fontName='DBHeavent', fontSize=26, leading=28, alignment=1, spaceAfter=20)
+                        text_style = ParagraphStyle('TextStyle', fontName='DBHeavent', fontSize=16, leading=18)
+                        font_to_use = 'DBHeavent'
+                    except Exception as e:
+                        # หากไม่พบไฟล์ฟอนต์ในเครื่อง ให้ถอยกลับไปใช้ Helvetica มาตรฐานระบบ
+                        st.error(f"⚠️ ไม่พบไฟล์ฟอนต์ 'DB Heavent v3.2.2.ttf' ในโฟลเดอร์โปรแกรม ระบบจะสลับไปใช้ฟอนต์มาตรฐานแทน: {e}")
                         title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=20, alignment=1, spaceAfter=20)
                         text_style = ParagraphStyle('TextStyle', fontName='Helvetica', fontSize=12)
                         font_to_use = 'Helvetica'
@@ -1176,28 +1183,27 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(Paragraph(f"<b>Document ID (เลขที่ใบเสนอราคา):</b> {curr_pur_obj['id']}", text_style))
                     story.append(Paragraph(f"<b>Project Name (ชื่อโครงการ):</b> {curr_pur_obj['project_name']}", text_style))
                     story.append(Paragraph(f"<b>Client Name (ชื่อลูกค้า):</b> {curr_pur_obj['client_name']}", text_style))
-                    story.append(Paragraph(f"<b>Requestor (ผู้ร้องขอโครงการ):</b> {curr_pur_obj.get('requestor', '-')}", text_style))  # ดึงชื่อผู้ร้องขอไปใส่ใน PDF
+                    story.append(Paragraph(f"<b>Requestor (ผู้ร้องขอโครงการ):</b> {curr_pur_obj.get('requestor', '-')}", text_style))
                     story.append(Paragraph(f"<b>Date (วันที่ออกเอกสาร):</b> {curr_pur_obj['date']}", text_style))
                     story.append(Spacer(1, 15))
                     
-                    # --- ปรับปรุงโครงสร้างตารางเนื้อหาพัสดุให้รองรับภาษาไทย 100% ---
+                    # --- โครงสร้างตารางเนื้อหาพัสดุในไฟล์ PDF ---
                     table_data = [["No.", "Item Code", "Description", "Unit", "Qty", "Unit Rate", "Total"]]
                     
                     for i, it in enumerate(curr_pur_obj["items"]):
-                        # ใช้ Paragraph ครอบข้อความใน Description เพื่อให้ยอมรับฟอนต์ภาษาไทยและตัดบรรทัดอัตโนมัติ
+                        # ครอบชื่อไอเทมด้วย Paragraph เสมอ เพื่อให้ฟอนต์ภาษาไทยทำงานและช่วยตัดคำขึ้นบรรทัดใหม่เมื่อยาวเกินไป
                         desc_paragraph = Paragraph(it["item_name"], text_style)
                         
                         table_data.append([
                             str(i+1), 
                             it["item_code"], 
-                            desc_paragraph, # เปลี่ยนจากข้อความธรรมดาเป็นวัตถุ Paragraph ที่ใส่ฟอนต์ไทยแล้ว
+                            desc_paragraph, 
                             it["unit"], 
                             f"{it['qty']:,.0f}", 
                             f"{it['unit_rate_total']:,.2f}", 
                             f"{it['total_price']:,.2f}"
                         ])
                         
-                    # สำหรับแถวสรุปผลรวมท้ายตาราง
                     grand_total_label = Paragraph("<b>GRAND TOTAL:</b>", text_style)
                     table_data.append(["", "", "", "", "", grand_total_label, f"{grand_total_boq:,.2f}"])
                     
@@ -1212,7 +1218,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         ('BACKGROUND', (0,1), (-1,-2), colors.beige),
                         ('GRID', (0,0), (-1,-2), 1, colors.black),
                         ('LINEABOVE', (0,-1), (-1,-1), 1.5, colors.black),
-                        ('FONTNAME', (0,0), (-1,-1), font_to_use)
+                        ('FONTNAME', (0,0), (-1,-1), font_to_use) # เรียกใช้ตัวแปรฟอนต์ที่เปิดใช้งานสำเร็จ
                     ]))
                     
                     story.append(pdf_table)
