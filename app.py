@@ -1225,13 +1225,15 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     grand_total_boq = sum(float(item.get("total_price", 0.0)) for item in curr_pur_obj["items"])
                     st.markdown(f"<h3 style='text-align: right; color:#00ffcc;'>💰 ยอดรวมมูลค่าเอกสารทั้งสิ้น: {grand_total_boq:,.2f} บาท</h3>", unsafe_allow_html=True)
                     
-                    # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกตามรูปแบบ "ใบขอสอบราคา" ---
+                    # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกตามรูปแบบ "ใบขอสอบราคาแยกหมวดหมู่" ---
                     pdf_filename = f"Request_for_Quotation_{curr_pur_obj['id']}.pdf"
                     pdf_path = os.path.join(BASE_DIR, pdf_filename)
                     
+                    # ปรับระยะขอบหน้ากระดาษ (Margin) ให้บาลานซ์สวยงามเข้ามุมพอดี
                     doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=25, bottomMargin=25)
                     story = []
                     
+                    # ลงทะเบียนฟอนต์ DB Heavent
                     try:
                         font_file_path = os.path.join(BASE_DIR, 'DB Heavent v3.2.2.ttf')
                         pdfmetrics.registerFont(TTFont('DBHeavent', font_file_path))
@@ -1240,17 +1242,22 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         text_style = ParagraphStyle('TextStyle', fontName='DBHeavent', fontSize=13, leading=16)
                         text_bold = ParagraphStyle('TextBold', fontName='DBHeavent', fontSize=13, leading=16)
                         header_style = ParagraphStyle('HeaderStyle', fontName='DBHeavent', fontSize=12, leading=14, alignment=1)
+                        cat_style = ParagraphStyle('CatStyle', fontName='DBHeavent', fontSize=13, leading=15, alignment=0, textColor=colors.HexColor("#003311")) # จัดชิดซ้ายสำหรับชื่อหมวดหมู่
                         footer_style = ParagraphStyle('FooterStyle', fontName='DBHeavent', fontSize=13, leading=15, alignment=1)
                         font_to_use = 'DBHeavent'
                     except Exception as e:
+                        st.error(f"⚠️ ไม่พบไฟล์ฟอนต์ 'DB Heavent v3.2.2.ttf' ระบบจะใช้ฟอนต์มาตรฐานแทน: {e}")
                         title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=18, alignment=1)
                         text_style = ParagraphStyle('TextStyle', fontName='Helvetica', fontSize=10, leading=12)
                         text_bold = ParagraphStyle('TextBold', fontName='Helvetica-Bold', fontSize=10, leading=12)
                         header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=9, alignment=1)
+                        cat_style = ParagraphStyle('CatStyle', fontName='Helvetica-Bold', fontSize=10, alignment=0)
                         footer_style = ParagraphStyle('FooterStyle', fontName='Helvetica', fontSize=10, alignment=1)
                         font_to_use = 'Helvetica'
 
-                    # 1. Header โลโก้บริษัท
+                    # -------------------------------------------------------------------------
+                    # ส่วนที่ 1: Header (โลโก้ SHARGE ฝั่งซ้าย + หัวข้อ ใบขอสอบราคา)
+                    # -------------------------------------------------------------------------
                     logo_path = os.path.join(BASE_DIR, 'SHARGE.png')
                     if os.path.exists(logo_path):
                         logo_img = Image(logo_path, width=120, height=38)
@@ -1258,7 +1265,9 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     else:
                         logo_cell = Paragraph("<b>SHARGE</b>", title_style)
                         
-                    top_header_data = [[logo_cell, Paragraph("<b>ใบขอสอบราคา</b>", title_style), ""]]
+                    top_header_data = [
+                        [logo_cell, Paragraph("<b>ใบขอสอบราคา</b>", title_style), ""]
+                    ]
                     top_header_table = Table(top_header_data, colWidths=[150, 245, 140])
                     top_header_table.setStyle(TableStyle([
                         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -1267,14 +1276,21 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     ]))
                     story.append(top_header_table)
 
-                    # 2. บล็อกข้อมูลโครงการ
+                    # -------------------------------------------------------------------------
+                    # ส่วนที่ 2: บล็อกข้อมูลโครงการ (แถบสีเทายาวเชื่อมกันสองฝั่ง)
+                    # -------------------------------------------------------------------------
                     requestor_name = curr_pur_obj.get('requestor', '-')
                     client_company = curr_pur_obj.get('client_name', '-')
                     project_title = curr_pur_obj.get('project_name', '-')
                     doc_date = curr_pur_obj.get('date', '-')
 
-                    left_block_text = f"<b>บริษัทที่เสนอ :</b> {client_company}<br/><b>โครงการ :</b> {project_title}<br/><b>ผู้ร้องขอโครงการ :</b> {requestor_name}"
-                    right_block_text = f"<b>วันที่ request :</b> {doc_date}<br/><b>เลขที่ ร้องขอ :</b> {curr_pur_obj['id']}<br/><b>RFQ Ref :</b> -"
+                    left_block_text = f"""<b>บริษัทที่เสนอ :</b> {client_company}<br/>
+                    <b>โครงการ :</b> {project_title}<br/>
+                    <b>ผู้ร้องขอโครงการ :</b> {requestor_name}"""
+                    
+                    right_block_text = f"""<b>วันที่ request :</b> {doc_date}<br/>
+                    <b>เลขที่ ร้องขอ :</b> {curr_pur_obj['id']}<br/>
+                    <b>RFQ Ref :</b> -"""
 
                     address_block_data = [
                         [Paragraph("<b>บริษัทที่เสนอ</b>", text_bold), "", Paragraph("", text_bold), ""], 
@@ -1286,13 +1302,16 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         ('SPAN', (0,0), (1,0)), ('SPAN', (2,0), (3,0)), ('SPAN', (0,1), (1,1)), ('SPAN', (2,1), (3,1)), 
                         ('BACKGROUND', (0,0), (3,0), colors.HexColor("#EAEAEA")), 
                         ('BOX', (0,0), (1,1), 1, colors.HexColor("#CCCCCC")), ('BOX', (2,0), (3,1), 1, colors.HexColor("#CCCCCC")),    
-                        ('VALIGN', (0,0), (-1,-1), 'TOP'), ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                        ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6),
                         ('LEFTPADDING', (0,0), (-1,-1), 8), ('RIGHTPADDING', (0,0), (-1,-1), 8),
                     ]))
                     story.append(address_table)
                     story.append(Spacer(1, 15))
 
-                    # 3. โครงสร้างตารางเนื้อหาพัสดุในไฟล์ PDF (7 คอลัมน์ มีช่อง Unit ครบถ้วน)
+                    # -------------------------------------------------------------------------
+                    # ส่วนที่ 3: ตารางรายการพัสดุสินค้าจัดซื้อ (รองรับการแยกหมวดหมู่)
+                    # -------------------------------------------------------------------------
                     table_data = [[
                         Paragraph("<b>ลำดับ</b>", header_style),
                         Paragraph("<b>รหัสสินค้า</b>", header_style),
@@ -1302,55 +1321,108 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         Paragraph("<b>ราคา/หน่วย</b>", header_style),
                         Paragraph("<b>จำนวนเงินรวม</b>", header_style)
                     ]]
-                    
+
                     table_styles_list = [
-                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#D9D9D9")),
+                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#D9D9D9")), # หัวคอลัมน์สีเทามาตรฐาน
                         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#999999")),
                         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
                         ('ALIGN', (0,0), (-1,0), 'CENTER'),
+                        ('TOPPADDING', (0,0), (-1,0), 6),
+                        ('BOTTOMPADDING', (0,0), (-1,0), 6),
                     ]
+
+                    items_list = curr_pur_obj.get("items", [])
                     
+                    # 🎯 ขั้นตอนการแตกแยกกลุ่มหมวดหมู่สินค้า (Category)
+                    categories_in_doc = []
+                    for it in items_list:
+                        # ค้นหาค่าหมวดหมู่ หากไม่มีให้ตั้งเป็น 'ทั่วไป'
+                        cat_name = it.get("category")
+                        if not cat_name:
+                            match_master = next((m for m in st.session_state.item_codes_master if m["code"] == it["item_code"]), None)
+                            cat_name = match_master["category"] if match_master else "ทั่วไป"
+                        if cat_name not in categories_in_doc:
+                            categories_in_doc.append(cat_name)
+
                     current_row_idx = 1
-                    for i, it in enumerate(curr_pur_obj["items"]):
-                        display_name = it['item_name']
-                        if it.get('brand') and it['brand'] != "-":
-                            display_name += f" ({it['brand']})"
-                            
-                        unit_rate = float(it.get("unit_rate_total", it.get("material_rate", 0.0) + it.get("labor_rate", 0.0)))
-                        total_line_price = unit_rate * float(it["qty"])
+
+                    # วนลูปแยกหมวดหมู่เพื่อแสดงผลแถวสีเขียวอ่อนกั้นใน PDF แบบในรูป
+                    for cat in categories_in_doc:
+                        # ดึงเฉพาะของกลุ่มที่อยู่ภายใต้หมวดหมู่ปัจจุบันนี้
+                        cat_items = []
+                        for it in items_list:
+                            cat_name = it.get("category") or next((m["category"] for m in st.session_state.item_codes_master if m["code"] == it["item_code"]), "ทั่วไป")
+                            if cat_name == cat:
+                                cat_items.append(it)
+                                
+                        # 🟢 สร้างแถวสีเขียวอ่อนแสดงชื่อหมวดหมู่ (เว้นช่องว่างคอลัมน์อื่นเพื่อให้คำสั่งตารางทำงานได้ครบ)
+                        cat_row = [Paragraph(f"<b>{cat}</b>", cat_style), "", "", "", "", "", ""]
+                        table_data.append(cat_row)
                         
-                        table_data.append([
-                            Paragraph(str(i+1), text_style),
-                            Paragraph(it.get("item_code", "-"), text_style),
-                            Paragraph(display_name, text_style),
-                            Paragraph(f"{it['qty']:,.0f}", text_style),
-                            Paragraph(it.get('unit', '-'), text_style),
-                            Paragraph(f"{unit_rate:,.2f}", text_style),
-                            Paragraph(f"{total_line_price:,.2f}", text_style)
-                        ])
-                        table_styles_list.append(('ALIGN', (0, current_row_idx), (1, current_row_idx), 'CENTER'))
-                        table_styles_list.append(('ALIGN', (2, current_row_idx), (2, current_row_idx), 'LEFT'))
-                        table_styles_list.append(('ALIGN', (3, current_row_idx), (4, current_row_idx), 'CENTER'))
-                        table_styles_list.append(('ALIGN', (5, current_row_idx), (6, current_row_idx), 'RIGHT'))
+                        # คำสั่งล้อมสไตล์ให้แถวหมวดหมู่นี้รวมช่อง (SPAN) และเทสีพื้นหลังสีเขียวอ่อนแบบตาราง Excel
+                        table_styles_list.append(('SPAN', (0, current_row_idx), (-1, current_row_idx)))
+                        table_styles_list.append(('BACKGROUND', (0, current_row_idx), (-1, current_row_idx), colors.HexColor("#C2EABD"))) # สีเขียวอ่อนแบบในรูปตัวอย่าง
+                        table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
+                        table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
                         current_row_idx += 1
                         
-                    # เพิ่มแถวสรุปผลรวมท้ายตาราง (ขยาย SPAN ครอบคลุม 5 คอลัมน์แรกเพื่อให้ฝั่งซ้ายล่างตารางโล่งสะอาด)
+                        # วนลูปพิมพ์ข้อมูลไอเทมภายในหมวดหมู่นั้น ๆ (รันเลขลำดับ 1, 2, 3 เริ่มต้นใหม่เสมอในแต่ละกลุ่มงาน)
+                        for item_no, it in enumerate(cat_items, 1):
+                            display_name = it['item_name']
+                            if it.get('brand') and it['brand'] != "-":
+                                display_name += f" ({it['brand']})"
+                                
+                            no_p = Paragraph(str(item_no), text_style) # รันตัวเลขลำดับนับ 1 ใหม่ทุกหมวดหมู่
+                            code_p = Paragraph(it.get('item_code', '-'), text_style)
+                            desc_p = Paragraph(display_name, text_style)
+                            qty_p = Paragraph(f"{it['qty']:,.0f}", text_style)
+                            unit_p = Paragraph(it.get('unit', '-'), text_style)
+                            
+                            unit_rate = float(it.get("unit_rate_total", it.get("material_rate", 0.0) + it.get("labor_rate", 0.0)))
+                            total_line_price = unit_rate * float(it["qty"])
+                            
+                            rate_p = Paragraph(f"{unit_rate:,.2f}", text_style)
+                            amount_p = Paragraph(f"{total_line_price:,.2f}", text_style)
+                            
+                            table_data.append([no_p, code_p, desc_p, qty_p, unit_p, rate_p, amount_p])
+                            
+                            # จัดสัดส่วนข้อมูลในตารางชิ้นงานย่อย
+                            table_styles_list.append(('ALIGN', (0, current_row_idx), (1, current_row_idx), 'CENTER'))
+                            table_styles_list.append(('ALIGN', (2, current_row_idx), (2, current_row_idx), 'LEFT'))
+                            table_styles_list.append(('ALIGN', (3, current_row_idx), (4, current_row_idx), 'CENTER'))
+                            table_styles_list.append(('ALIGN', (5, current_row_idx), (6, current_row_idx), 'RIGHT'))
+                            table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
+                            table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
+                            current_row_idx += 1
+
+                    # -------------------------------------------------------------------------
+                    # ส่วนที่ 4: ตารางสรุปมูลค่ารวมเงินสุทธิ (ซ่อนเส้นตารางฝั่งซ้ายล่างทั้งหมด)
+                    # -------------------------------------------------------------------------
+                    grand_total_boq = sum(float(item.get("total_price", 0.0)) for item in items_list)
+                    
                     table_data.append(["", "", "", "", "", Paragraph("<b>มูลค่ารวมทั้งสิ้น</b>", text_bold), Paragraph(f"<b>{grand_total_boq:,.2f}</b>", text_bold)])
+                    
                     table_styles_list.append(('SPAN', (0, current_row_idx), (4, current_row_idx)))
-                    table_styles_list.append(('BACKGROUND', (5, current_row_idx), (6, current_row_idx), colors.HexColor("#EAEAEA")))
+                    table_styles_list.append(('BACKGROUND', (5, current_row_idx), (6, current_row_idx), colors.HexColor("#EAEAEA"))) 
                     table_styles_list.append(('ALIGN', (5, current_row_idx), (5, current_row_idx), 'LEFT'))
                     table_styles_list.append(('ALIGN', (6, current_row_idx), (6, current_row_idx), 'RIGHT'))
+                    table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
+                    table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
+                    
+                    # ลบเส้นแนวระนาบแนวดิ่งฝั่งซ้ายล่างออกทั้งหมด เพื่อให้พื้นที่ว่างโล่งขาวสะอาดตา
                     table_styles_list.append(('LINEBEFORE', (0, current_row_idx), (0, current_row_idx), 0, colors.white))
                     table_styles_list.append(('LINEBELOW', (0, current_row_idx), (4, current_row_idx), 0, colors.white))
                     current_row_idx += 1
                     
-                    # กำหนดความกว้างตารางรวม 535 พอดีหน้า A4 คำว่า "ลำดับ" ไม่ตกหล่นแน่นอน
+                    # ขอบเขตความกว้างคอลัมน์มาตรฐาน [ลำดับ: 40, รหัสสินค้า: 65, รายการสินค้า: 185, จำนวน: 40, Unit: 35, ราคา/หน่วย: 85, จำนวนเงินรวม: 85]
                     pdf_table = Table(table_data, colWidths=[40, 65, 185, 40, 35, 85, 85])
                     pdf_table.setStyle(TableStyle(table_styles_list))
                     story.append(pdf_table)
                     story.append(Spacer(1, 40))
 
-                    # 4. ช่องเซ็นชื่อผู้อนุมัติ / ผู้เสนอราคา
+                    # -------------------------------------------------------------------------
+                    # ส่วนที่ 5: บล็อกลงนามลายเซ็นท้ายเล่ม (Procurement Department)
+                    # -------------------------------------------------------------------------
                     signature_data = [
                         ["(......................................................)", "", "(......................................................)"],
                         [Paragraph("<b>(ผู้อนุมัติ)</b>", footer_style), "", Paragraph("<b>(ผู้เสนอราคา)</b>", footer_style)],
@@ -1359,10 +1431,14 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     ]
                     signature_table = Table(signature_data, colWidths=[230, 75, 230])
                     signature_table.setStyle(TableStyle([
-                        ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                        ('TOPPADDING', (0,0), (-1,-1), 1), ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                        ('TOPPADDING', (0,0), (-1,-1), 1),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 1),
                     ]))
                     story.append(signature_table)
+
+                    # สั่งเซฟคอมไพล์สรุปยอดแผ่น PDF ทั้งหมด
                     doc.build(story)
                     
                     # ปุ่มดาวน์โหลดเอกสาร PDF ขาออกไปใช้งานพริ้นต์จริง
