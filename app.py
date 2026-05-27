@@ -1091,7 +1091,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                 
                 st.info(f"📁 **กำลังจัดการเอกสาร:** {curr_pur_obj['id']} | **โครงการ:** {curr_pur_obj['project_name']} | **ลูกค้า:** {curr_pur_obj['client_name']} | **ผู้ร้องขอ:** {curr_pur_obj.get('requestor', '-')}")
                 
-                # --- ส่วนลงรายละเอียด Line Items แยกย่อยภายในโครงการ ---
+                # --- ส่วนลงรายละเอียด Line Items แยกย่อยภายในโครงการ (เพิ่มช่อง ยี่ห้อ และ Remark) ---
                 st.markdown("#### ➕ เพิ่มรายการวัสดุและคำนวณราคาลงใน BOQ เสนอราคา")
                 
                 if not st.session_state.item_codes_master:
@@ -1103,6 +1103,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     item_code_extracted = sel_item_choice.split("]")[0].replace("[", "")
                     master_item_ptr = next(i for i in st.session_state.item_codes_master if i["code"] == item_code_extracted)
                     
+                    # บรรทัดที่ 1: กรอก จำนวน, ราคาวัสดุ, ค่าแรง
                     col_l1, col_l2, col_l3 = st.columns(3)
                     with col_l1:
                         input_qty = st.number_input("ระบุจำนวน (Quantity)", min_value=0.0, step=1.0, value=1.0)
@@ -1110,6 +1111,13 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         input_mat_rate = st.number_input("ระบุราคาวัสดุเสนอขาย / หน่วย (บาท)", min_value=0.0, step=10.0, value=0.0)
                     with col_l3:
                         input_lab_rate = st.number_input("ระบุค่าแรงเสนอขาย / หน่วย (บาท)", min_value=0.0, step=10.0, value=0.0)
+                    
+                    # [ADD] บรรทัดที่ 2: เพิ่มช่องสำหรับกรอก ยี่ห้อ/รุ่น และ Remark (หมายเหตุ) บนหน้าเว็บ
+                    col_l4, col_l5 = st.columns(2)
+                    with col_l4:
+                        input_brand = st.text_input("ยี่ห้อ / รุ่น (Brand / Model)", placeholder="เช่น BCC, ABB, Link, N/A")
+                    with col_l5:
+                        input_remark = st.text_input("หมายเหตุ (Remark)", placeholder="เช่น ระบุข้อมูลเพิ่มเติมเฉพาะแถวนี้")
                         
                     if st.button("➕ กดเพื่อเพิ่มลำดับวัสดุรายการนี้เข้า BOQ", use_container_width=True, type="primary"):
                         unit_rate_total = input_mat_rate + input_lab_rate
@@ -1118,6 +1126,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         if "items" not in curr_pur_obj:
                             curr_pur_obj["items"] = []
                             
+                        # [UPDATED] บันทึกค่า ยี่ห้อ และ Remark ร่วมลงฐานข้อมูล JSON ของใบเสนอราคานั้น ๆ
                         curr_pur_obj["items"].append({
                             "item_code": master_item_ptr["code"],
                             "item_name": master_item_ptr["item_name"],
@@ -1126,7 +1135,9 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                             "material_rate": input_mat_rate,
                             "labor_rate": input_lab_rate,
                             "unit_rate_total": unit_rate_total,
-                            "total_price": line_total_price
+                            "total_price": line_total_price,
+                            "brand": input_brand.strip() if input_brand else "-",   # บันทึกยี่ห้อ (ถ้าว่างจะใส่ขีดให้)
+                            "remark": input_remark.strip() if input_remark else ""  # บันทึกหมายเหตุ
                         })
                         save_pur_proposals(st.session_state.pur_proposals)
                         st.toast("เพิ่มรายการพัสดุเข้า BOQ สำเร็จ!", icon="✅")
