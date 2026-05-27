@@ -1440,7 +1440,6 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
 
                     # สั่งเซฟคอมไพล์สรุปยอดแผ่น PDF ทั้งหมด
                     doc.build(story)
-                    
                     # ปุ่มดาวน์โหลดเอกสาร PDF ขาออกไปใช้งานพริ้นต์จริง
                     with open(pdf_path, "rb") as pdf_file:
                         st.download_button(
