@@ -1143,27 +1143,85 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         st.toast("เพิ่มรายการพัสดุเข้า BOQ สำเร็จ!", icon="✅")
                         st.rerun()
                         
-                # แสดงรายการตาราง Line Items ปัจจุบันภายในโปรเจกต์เสนอราคานี้
+                # --- [UPDATED] แสดงรายการตาราง Line Items พร้อมไอคอนแก้ไข/ลบ รายชิ้นงาน ---
                 if curr_pur_obj.get("items"):
                     st.markdown("##### 📊 ตารางรายละเอียดวัสดุในใบเสนอราคาปัจจุบัน")
-                    df_lines = pd.DataFrame(curr_pur_obj["items"])
-                    df_lines.insert(0, "ลำดับที่", range(1, len(df_lines) + 1))
                     
-                    df_display_lines = df_lines[["ลำดับที่", "item_code", "item_name", "unit", "qty", "material_rate", "labor_rate", "unit_rate_total", "total_price"]]
-                    df_display_lines.columns = ["ลำดับ", "รหัสวัสดุ", "รายละเอียดวัสดุ", "หน่วย", "จำนวน", "ราคาวัสดุ/หน่วย", "ค่าแรง/หน่วย", "ราคารวมต่อหน่วย", "ยอดรวมสุทธิ (บาท)"]
+                    # หัวข้อตารางแสดงผลบนหน้าเว็บ
+                    h_cols = st.columns([0.6, 1.2, 3.2, 0.8, 1.0, 1.3, 1.3, 1.5, 1.2])
+                    h_cols[0].markdown("**ลำดับ**")
+                    h_cols[1].markdown("**รหัสวัสดุ**")
+                    h_cols[2].markdown("**รายละเอียดวัสดุ**")
+                    h_cols[3].markdown("**หน่วย**")
+                    h_cols[4].markdown("**จำนวน**")
+                    h_cols[5].markdown("**ราคา/หน่วย**")
+                    h_cols[6].markdown("**ค่าแรง/หน่วย**")
+                    h_cols[7].markdown("**ยอดรวมสุทธิ**")
+                    h_cols[8].markdown("**จัดการ**")
+                    st.markdown("<hr style='margin:0px 0px 10px 0px;'>", unsafe_allow_html=True)
                     
-                    st.dataframe(
-                        df_display_lines, use_container_width=True, hide_index=True,
-                        column_config={
-                            "ราคาวัสดุ/หน่วย": st.column_config.NumberColumn(format="%,.2f"),
-                            "ค่าแรง/หน่วย": st.column_config.NumberColumn(format="%,.2f"),
-                            "ราคารวมต่อหน่วย": st.column_config.NumberColumn(format="%,.2f"),
-                            "ยอดรวมสุทธิ (บาท)": st.column_config.NumberColumn(format="%,.2f")
-                        }
-                    )
-                    
-                    grand_total_boq = df_lines["total_price"].sum()
-                    st.markdown(f"<h3 style='text-align: right; color:#00ffcc;'>💰 ยอดรวมมูลค่าเอกสารทั้งสิ้น: {grand_total_boq:,.2f} บาท</h3>", unsafe_allow_html=True)
+                    # วนลูปแสดงผลรายการวัสดุทีละบรรทัดพร้อมปุ่มกดไอคอน
+                    for i, it in enumerate(curr_pur_obj["items"]):
+                        r_cols = st.columns([0.6, 1.2, 3.2, 0.8, 1.0, 1.3, 1.3, 1.5, 1.2])
+                        
+                        # คำนวณราคาสุทธิของแถว
+                        unit_rate_total = float(it.get("material_rate", 0.0)) + float(it.get("labor_rate", 0.0))
+                        line_total = unit_rate_total * float(it.get("qty", 0.0))
+                        
+                        # หยอดข้อมูลลงคอลลัมน์
+                        r_cols[0].write(f"{i+1}")
+                        r_cols[1].write(f"`{it.get('item_code', '-')}`")
+                        
+                        # แสดงชื่อสินค้าพ่วงยี่ห้อ (ถ้ามีกรอกไว้)
+                        item_display_name = it.get('item_name', '-')
+                        if it.get('brand') and it['brand'] != "-":
+                            item_display_name += f" ({it['brand']})"
+                        r_cols[2].write(item_display_name)
+                        
+                        r_cols[3].write(f"{it.get('unit', '-')}")
+                        r_cols[4].write(f"{it.get('qty', 0.0):,.0f}")
+                        r_cols[5].write(f"{it.get('material_rate', 0.0):,.2f}")
+                        r_cols[6].write(f"{it.get('labor_rate', 0.0):,.2f}")
+                        r_cols[7].write(f"**{line_total:,.2f}**")
+                        
+                        # ฝังไอคอนปุ่มจัดการ ✏️ และ 🗑️ ไว้ท้ายแถวของแต่ละไอเทม
+                        btn_col1, btn_col2 = r_cols[8].columns(2)
+                        
+                        # 1. ปุ่มไอคอนแก้ไข (✏️) เปิด Dialog ขึ้นมาแก้ไขเฉพาะชิ้น
+                        if btn_col1.button("✏️", key=f"edit_pur_item_{curr_pur_obj['id']}_{i}", help="แก้ไขรายการนี้"):
+                            @st.dialog(f"✏️ แก้ไขข้อมูลลำดับที่ {i+1}")
+                            def edit_pur_item_dialog(item_idx, item_data):
+                                edit_q = st.number_input("แก้ไขจำนวน (Qty)", min_value=0.0, value=float(item_data.get("qty", 1.0)), step=1.0)
+                                edit_m = st.number_input("แก้ไขราคาวัสดุ / หน่วย", min_value=0.0, value=float(item_data.get("material_rate", 0.0)), step=10.0)
+                                edit_l = st.number_input("แก้ไขค่าแรง / หน่วย", min_value=0.0, value=float(item_data.get("labor_rate", 0.0)), step=10.0)
+                                edit_b = st.text_input("แก้ไขยี่ห้อ / รุ่น", value=item_data.get("brand", "-"))
+                                edit_r = st.text_input("แก้ไขหมายเหตุ (Remark)", value=item_data.get("remark", ""))
+                                
+                                if st.button("💾 บันทึกการแก้ไขชิ้นนี้", use_container_width=True):
+                                    item_data["qty"] = edit_q
+                                    item_data["material_rate"] = edit_m
+                                    item_data["labor_rate"] = edit_l
+                                    item_data["unit_rate_total"] = edit_m + edit_l
+                                    item_data["total_price"] = (edit_m + edit_l) * edit_q
+                                    item_data["brand"] = edit_b.strip() if edit_b else "-"
+                                    item_data["remark"] = edit_r.strip()
+                                    
+                                    save_pur_proposals(st.session_state.pur_proposals)
+                                    st.toast("แก้ไขรายการสำเร็จ!", icon="✅")
+                                    st.rerun()
+                            
+                            edit_pur_item_dialog(i, it)
+
+                        # 2. ปุ่มไอคอนลบ (🗑️) สั่งดึงออกจากลิสต์แถวทันที
+                        if btn_col2.button("🗑️", key=f"del_pur_item_{curr_pur_obj['id']}_{i}", help="ลบรายการนี้ออก"):
+                            curr_pur_obj["items"].pop(i)
+                            save_pur_proposals(st.session_state.pur_proposals)
+                            st.toast("ลบรายการออกจากตารางเรียบร้อย!", icon="🗑️")
+                            st.rerun()
+                            
+                    st.markdown("---")
+                    grand_total_boq = sum(float(item.get("total_price", 0.0)) for item in curr_pur_obj["items"]) [cite: 185]
+                    st.markdown(f"<h3 style='text-align: right; color:#00ffcc;'>💰 ยอดรวมมูลค่าเอกสารทั้งสิ้น: {grand_total_boq:,.2f} บาท</h3>", unsafe_allow_html=True) [cite: 206]
                     
                     # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกตามรูปแบบ "ใบขอสอบราคา" (อัปเดตขยายแถบเทาและคัดยอดเงินออก) ---
                     pdf_filename = f"Request_for_Quotation_{curr_pur_obj['id']}.pdf"
