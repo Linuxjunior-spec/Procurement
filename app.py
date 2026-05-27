@@ -1291,15 +1291,16 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                             rate_p = Paragraph(f"{unit_rate:,.2f}", text_style)
                             amount_p = Paragraph(f"{total_line_price:,.2f}", text_style)
                             
-                            # ดึงข้อมูลแบรนด์/ยี่ห้อ และหมายเหตุ (ถ้ายังไม่ได้ลงไว้ในฐานข้อมูลคลังให้โชว์เป็นค่าว่างหรือเครื่องหมายขีด)
+                            # ดึงข้อมูลแบรนด์/ยี่ห้อ และหมายเหตุ
                             brand_p = Paragraph(it.get("brand", "-"), text_style)
                             remark_p = Paragraph(it.get("remark", ""), text_style)
                             
-                            table_data.append([no_p, code_p, item_p, qty_p, unit_p, rate_p, amount_p, brand_p, remark_p])
+                            # [FIXED] ตัด code_p ออกเรียบร้อย ให้เหลือข้อมูล 8 ช่อง (คอลัมน์) สัมพันธ์กับ colWidths พอดีเป๊ะ
+                            table_data.append([no_p, item_p, qty_p, unit_p, rate_p, amount_p, brand_p, remark_p])
                             
                             # จัดฝั่งซ้าย-ขวาช่องข้อมูล
-                            table_styles_list.append(('ALIGN', (2, current_row_idx), (2, current_row_idx), 'LEFT')) # ชื่อสินค้าชิดซ้าย
-                            table_styles_list.append(('ALIGN', (5, current_row_idx), (6, current_row_idx), 'RIGHT')) # ราคาและยอดรวมชิดขวา
+                            table_styles_list.append(('ALIGN', (1, current_row_idx), (1, current_row_idx), 'LEFT')) # ชื่อสินค้า (Item) อยู่คอลัมน์อินเด็กซ์ 1 จัดชิดซ้าย
+                            table_styles_list.append(('ALIGN', (4, current_row_idx), (5, current_row_idx), 'RIGHT')) # ราคา (Price) และ ยอดรวม (Amount) จัดชิดขวา
                             table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 4))
                             table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 4))
                             current_row_idx += 1
