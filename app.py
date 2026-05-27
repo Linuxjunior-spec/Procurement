@@ -1143,45 +1143,45 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         st.toast("เพิ่มรายการพัสดุเข้า BOQ สำเร็จ!", icon="✅")
                         st.rerun()
                         
-                # --- [UPDATED] แสดงรายการตาราง Line Items พร้อมไอคอนแก้ไข/ลบ รายชิ้นงาน ---
+                # --- ตารางรายละเอียดวัสดุในใบเสนอราคาปัจจุบัน พร้อมไอคอนจัดการ ---
                 if curr_pur_obj.get("items"):
-                    st.markdown("##### 📊 ตารางรายละเอียดวัสดุในใบเสนอราคาปัจจุบัน")
+                    st.markdown("##### 📊 ตารางรายละเอียดวัสดุในใบเสนอราคาปัจจุบัน") # [cite: 201]
                     
                     # หัวข้อตารางแสดงผลบนหน้าเว็บ
-                    h_cols = st.columns([0.6, 1.2, 3.2, 0.8, 1.0, 1.3, 1.3, 1.5, 1.2])
-                    h_cols[0].markdown("**ลำดับ**")
-                    h_cols[1].markdown("**รหัสวัสดุ**")
-                    h_cols[2].markdown("**รายละเอียดวัสดุ**")
-                    h_cols[3].markdown("**หน่วย**")
-                    h_cols[4].markdown("**จำนวน**")
-                    h_cols[5].markdown("**ราคา/หน่วย**")
-                    h_cols[6].markdown("**ค่าแรง/หน่วย**")
-                    h_cols[7].markdown("**ยอดรวมสุทธิ**")
+                    h_cols = st.columns([0.6, 1.2, 3.2, 0.8, 1.0, 1.3, 1.3, 1.5, 1.2]) # [cite: 202]
+                    h_cols[0].markdown("**ลำดับ**") # [cite: 202]
+                    h_cols[1].markdown("**รหัสวัสดุ**") # [cite: 202]
+                    h_cols[2].markdown("**รายละเอียดวัสดุ**") # [cite: 202]
+                    h_cols[3].markdown("**หน่วย**") # [cite: 202]
+                    h_cols[4].markdown("**จำนวน**") # [cite: 202]
+                    h_cols[5].markdown("**ราคา/หน่วย**") # [cite: 202]
+                    h_cols[6].markdown("**ค่าแรง/หน่วย**") # [cite: 202]
+                    h_cols[7].markdown("**ยอดรวมสุทธิ**") # [cite: 202]
                     h_cols[8].markdown("**จัดการ**")
                     st.markdown("<hr style='margin:0px 0px 10px 0px;'>", unsafe_allow_html=True)
                     
                     # วนลูปแสดงผลรายการวัสดุทีละบรรทัดพร้อมปุ่มกดไอคอน
-                    for i, it in enumerate(curr_pur_obj["items"]):
+                    for i, it in enumerate(curr_pur_obj["items"]): # [cite: 212]
                         r_cols = st.columns([0.6, 1.2, 3.2, 0.8, 1.0, 1.3, 1.3, 1.5, 1.2])
                         
                         # คำนวณราคาสุทธิของแถว
-                        unit_rate_total = float(it.get("material_rate", 0.0)) + float(it.get("labor_rate", 0.0))
-                        line_total = unit_rate_total * float(it.get("qty", 0.0))
+                        unit_rate_total = float(it.get("material_rate", 0.0)) + float(it.get("labor_rate", 0.0)) # [cite: 195]
+                        line_total = unit_rate_total * float(it.get("qty", 0.0)) # [cite: 195]
                         
                         # หยอดข้อมูลลงคอลลัมน์
-                        r_cols[0].write(f"{i+1}")
-                        r_cols[1].write(f"`{it.get('item_code', '-')}`")
+                        r_cols[0].write(f"{i+1}") # [cite: 213]
+                        r_cols[1].write(f"`{it.get('item_code', '-')}`") # [cite: 213]
                         
                         # แสดงชื่อสินค้าพ่วงยี่ห้อ (ถ้ามีกรอกไว้)
-                        item_display_name = it.get('item_name', '-')
+                        item_display_name = it.get('item_name', '-') # [cite: 213]
                         if it.get('brand') and it['brand'] != "-":
                             item_display_name += f" ({it['brand']})"
                         r_cols[2].write(item_display_name)
                         
-                        r_cols[3].write(f"{it.get('unit', '-')}")
-                        r_cols[4].write(f"{it.get('qty', 0.0):,.0f}")
-                        r_cols[5].write(f"{it.get('material_rate', 0.0):,.2f}")
-                        r_cols[6].write(f"{it.get('labor_rate', 0.0):,.2f}")
+                        r_cols[3].write(f"{it.get('unit', '-')}") # [cite: 213]
+                        r_cols[4].write(f"{it.get('qty', 0.0):,.0f}") # [cite: 213]
+                        r_cols[5].write(f"{it.get('material_rate', 0.0):,.2f}") # [cite: 202]
+                        r_cols[6].write(f"{it.get('labor_rate', 0.0):,.2f}") # [cite: 202]
                         r_cols[7].write(f"**{line_total:,.2f}**")
                         
                         # ฝังไอคอนปุ่มจัดการ ✏️ และ 🗑️ ไว้ท้ายแถวของแต่ละไอเทม
@@ -1220,8 +1220,9 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                             st.rerun()
                             
                     st.markdown("---")
-                    grand_total_boq = sum(float(item.get("total_price", 0.0)) for item in curr_pur_obj["items"]) [cite: 185]
-                    st.markdown(f"<h3 style='text-align: right; color:#00ffcc;'>💰 ยอดรวมมูลค่าเอกสารทั้งสิ้น: {grand_total_boq:,.2f} บาท</h3>", unsafe_allow_html=True) [cite: 206]
+                    # [FIXED] แก้ไขไวยากรณ์การดึงค่าไอเทมวนลูปให้ถูกต้องเรียบร้อย ไม่เกิด NameError ตัวแปรลอย
+                    grand_total_boq = sum(float(item.get("total_price", 0.0)) for item in curr_pur_obj["items"]) # 
+                    st.markdown(f"<h3 style='text-align: right; color:#00ffcc;'>💰 ยอดรวมมูลค่าเอกสารทั้งสิ้น: {grand_total_boq:,.2f} บาท</h3>", unsafe_allow_html=True) # [cite: 205, 206]
                     
                     # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกตามรูปแบบ "ใบขอสอบราคา" (อัปเดตขยายแถบเทาและคัดยอดเงินออก) ---
                     pdf_filename = f"Request_for_Quotation_{curr_pur_obj['id']}.pdf"
