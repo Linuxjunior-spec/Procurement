@@ -983,7 +983,7 @@ elif main_menu == "📊 BOQ Supplier":
                             st.rerun()
 
 # =========================================================================
-# 🗂️ บริหาร Item Code
+# 🗂️ บริหาร Item Code (เวอร์ชันปรับปรุงรหัสอัปเดตตามตัวอักษรหมวดหมู่อัตโนมัติ)
 # =========================================================================
 elif main_menu == "🗂️ บริหาร Item Code":
     st.title("🗂️ ศูนย์บริหารคลังฐานข้อมูลสินค้าและรหัสสินค้ากลาง (Item Code Master)")
@@ -992,28 +992,29 @@ elif main_menu == "🗂️ บริหาร Item Code":
     with item_tab1:
         st.markdown("### ➕ เพิ่มพัสดุและรหัสสินค้าใหม่เข้าสู่ระบบ")
         
+        # วาง Layout หมวดหมู่ไว้นอก Form เพื่อให้เกิดการ Rerun ค่ารหัสใหม่ทันทีเวลาสลับเลือกหมวดหมู่
         cat_lay1, cat_lay2 = st.columns([5, 1])
         with cat_lay1:
-            i_cat = st.selectbox("หมวดหมู่งาน / กลุ่มวัสดุ", st.session_state.categories_list, help="💡 สามารถพิมพ์ชื่อเพื่อเสิร์ชหาหมวดหมู่เดิมด่วนได้ทันทีครับ")
+            i_cat = st.selectbox(
+                "1. เลือกหมวดหมู่งาน / กลุ่มวัสดุ ก่อนเป็นอันดับแรก", 
+                st.session_state.categories_list, 
+                help="💡 สามารถพิมพ์ชื่อเพื่อเสิร์ชหาหมวดหมู่เดิมด่วนได้ทันทีครับ"
+            )
         with cat_lay2:
             st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
             if st.button("➕ ลงทะเบียนหมวดหมู่", use_container_width=True, help="เปิดหน้าต่างลงทะเบียนเพิ่มกลุ่มงานชิ้นใหม่"):
                 add_category_dialog()
-
-        # =========================================================================
-        # 🎯 เริ่มต้นตรรกะการรันรหัสสินค้าอัตโนมัติด้วยอักษรนำของหมวดหมู่
-        # =========================================================================
+                
+        # --- ตรรกะคำนวณรหัสสินค้าอัตโนมัติ (Prefix Character Matching) ---
         if i_cat:
-            prefix_char = i_cat[0]  # ดึงอักษรตัวแรกของหมวดหมู่ เช่น "สายไฟ" -> "ส"
+            prefix_char = i_cat[0]  # ดึงตัวอักษรตัวแรกสุด เช่น "สายไฟ" -> "ส"
             prefix = f"{prefix_char}-"
             
             max_seq = 0
-            # ลูปเช็กโค้ดที่มีอยู่แล้วในคลังวัสดุ เพื่อหาเลขลำดับที่สูงที่สุดของหมวดหมู่นี้
             for item in st.session_state.item_codes_master:
                 code_str = item.get("code", "")
                 if code_str.startswith(prefix):
                     try:
-                        # แยกเอาตัวเลขด้านหลังเครื่องหมายแดช (-) เช่น "ส-0005" -> 5
                         current_num = int(code_str.split("-")[1])
                         if current_num > max_seq:
                             max_seq = current_num
@@ -1021,36 +1022,52 @@ elif main_menu == "🗂️ บริหาร Item Code":
                         pass
             
             next_itm_seq = max_seq + 1
-            auto_itm_code = f"{prefix}{next_itm_seq:04d}"  # เช่น ส-0001
+            auto_itm_code = f"{prefix}{next_itm_seq:04d}"  # ผลลัพธ์จะได้ เช่น ส-0001
         else:
             auto_itm_code = "ITM-0001"
             
-        # แสดงกล่องรหัสสินค้า โดยมีค่าเริ่มต้นเป็นค่ารหัสที่เจนให้ใหม่
-        i_code = st.text_input("รหัสสินค้า (Item Code)", value=auto_itm_code)
-        # =========================================================================
-        
-        i_name = st.text_input("รายการวัสดุ / รายละเอียดพัสดุ (Item Description)", placeholder="เช่น CV 1C-150sq.mm (1Core) 0.6/1KV")
-        
-        u_lay1, u_lay2 = st.columns([5, 1])
-        with u_lay1: i_unit = st.selectbox("หน่วยนับพัสดุ (Unit)", st.session_state.units_list)
-        with u_lay2:
-            st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
-            if st.button("➕ ลงทะเบียนหน่วย", use_container_width=True): add_unit_dialog()
+        # เปิดหน้าฟอร์มกรอกรายละเอียดพัสดุส่วนที่เหลือ
+        with st.form("item_code_main_form", clear_on_submit=True):
+            st.markdown("##### 📝 รายละเอียดรหัสสินค้าใหม่")
+            
+            # แสดงรหัสที่คำนวณได้ (ผู้ใช้สามารถพิมพ์แก้ไขเองแมนนวลได้หากจำเป็น)
+            i_code = st.text_input("รหัสสินค้า (Item Code)", value=auto_itm_code)
+            
+            i_name = st.text_input("รายการวัสดุ / รายละเอียดพัสดุ (Item Description)", placeholder="เช่น CV 1C-150sq.mm (1Core) 0.6/1KV")
+            
+            u_lay1, u_lay2 = st.columns([5, 1])
+            with u_lay1: 
+                i_unit = st.selectbox("หน่วยนับพัสดุ (Unit)", st.session_state.units_list)
+            with u_lay2:
+                st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
+                # หมายเหตุ: ปุ่มในฟอร์มย่อยนี้ใช้เปิด Dialog สำหรับบันทึกหน่วยนับกลางได้ปกติ
                 
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("💾 บันทึกรหัสพัสดุนี้เข้าคลังมาสเตอร์", use_container_width=True):
-            if i_code and i_name:
-                i_code = i_code.strip()
-                i_name = i_name.strip()
-                if any(x["code"] == i_code for x in st.session_state.item_codes_master): st.error(f"❌ รหัสซ้ำซ้อน")
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit_item = st.form_submit_button("💾 บันทึกรหัสพัสดุนี้เข้าคลังมาสเตอร์", use_container_width=True)
+            
+            if submit_item:
+                if i_code and i_name:
+                    i_code = i_code.strip()
+                    i_name = i_name.strip()
+                    # ตรวจสอบเพื่อป้องกันการบันทึกรหัสซ้ำในคลังข้อมูล
+                    if any(x["code"] == i_code for x in st.session_state.item_codes_master): 
+                        st.error(f"❌ ไม่สามารถบันทึกได้ เนื่องจากรหัสสินค้า '{i_code}' มีอยู่ในระบบแล้ว")
+                    else:
+                        st.session_state.item_codes_master.append({
+                            "code": i_code, 
+                            "category": i_cat, 
+                            "item_name": i_name, 
+                            "unit": i_unit
+                        })
+                        save_item_codes(st.session_state.item_codes_master)
+                        st.toast(f"✅ บันทึกรหัสสินค้า {i_code} สำเร็จ!", icon="🎉")
+                        st.rerun()
                 else:
-                    st.session_state.item_codes_master.append({"code": i_code, "category": i_cat, "item_name": i_name, "unit": i_unit})
-                    save_item_codes(st.session_state.item_codes_master)
-                    st.success(f"✅ บันทึกรหัสสินค้าสำเร็จ!")
-                    st.rerun()
+                    st.error("❌ กรุณากรอกรหัสสินค้าและรายละเอียดพัสดุให้ครบถ้วนก่อนกดบันทึก")
 
     with item_tab2:
-        if not st.session_state.item_codes_master: st.info("💡 ปัจจุบันยังไม่มีข้อมูลวัสดุในคลัง")
+        if not st.session_state.item_codes_master: 
+            st.info("💡 ปัจจุบันยังไม่มีข้อมูลวัสดุในคลัง")
         else:
             df_items_master = pd.DataFrame(st.session_state.item_codes_master)
             df_items_master.columns = ["รหัสสินค้า (Item Code)", "หมวดหมู่พัสดุ", "รายการวัสดุ / รายละเอียด", "หน่วยนับ (Unit)"]
@@ -1065,10 +1082,11 @@ elif main_menu == "🗂️ บริหาร Item Code":
                 is_item_used_rfq = any(item.get("item_code") == target_del_code for rfq in st.session_state.rfq_history for sup in rfq.get("suppliers", []) for item in sup.get("items", []))
                 is_item_used_standalone = any(x.get("item_code") == target_del_code for x in st.session_state.standalone_prices)
                 
-                if is_item_used_rfq or is_item_used_standalone: st.error("❌ ไม่สามารถลบได้ เนื่องจากรหัสนี้ถูกนำไปใช้งานบันทึกราคาแล้ว")
+                if is_item_used_rfq or is_item_used_standalone: 
+                    st.error("❌ ไม่สามารถลบได้ เนื่องจากรหัสนี้ถูกนำไปใช้งานบันทึกราคาในประวัติจัดซื้อแล้ว")
                 else:
                     item_to_remove = next(i for i in st.session_state.item_codes_master if i["code"] == target_del_code)
                     st.session_state.item_codes_master.remove(item_to_remove)
                     save_item_codes(st.session_state.item_codes_master)
-                    st.success(f"ลบสำเร็จ")
+                    st.success(f"ลบรหัสสินค้าเรียบร้อย")
                     st.rerun()
