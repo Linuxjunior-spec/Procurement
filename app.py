@@ -1255,13 +1255,15 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(Spacer(1, 15))
 
                     # -------------------------------------------------------------------------
-                    # ส่วนที่ 3: ตารางรายการพัสดุสินค้าจัดซื้อ (ปรับปรุงแก้ไขคอลัมน์ ลำดับ)
+                    # ส่วนที่ 3: ตารางรายการพัสดุสินค้าจัดซื้อ (เพิ่มช่อง Unit ต่อจาก จำนวน)
                     # -------------------------------------------------------------------------
+                    # [UPDATED] เพิ่มช่อง Unit ต่อจากคอลัมน์จำนวน
                     table_data = [[
                         Paragraph("<b>ลำดับ</b>", header_style),
                         Paragraph("<b>รหัสสินค้า</b>", header_style),
                         Paragraph("<b>รายการสินค้า</b>", header_style),
                         Paragraph("<b>จำนวน</b>", header_style),
+                        Paragraph("<b>Unit</b>", header_style), # เพิ่มหัวข้อ Unit
                         Paragraph("<b>ราคา/หน่วย</b>", header_style),
                         Paragraph("<b>จำนวนเงินรวม</b>", header_style)
                     ]]
@@ -1287,6 +1289,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         code_p = Paragraph(it['item_code'], text_style)
                         desc_p = Paragraph(display_name, text_style)
                         qty_p = Paragraph(f"{it['qty']:,.0f}", text_style)
+                        unit_p = Paragraph(it.get('unit', '-'), text_style) # ดึงค่าหน่วยนับมาแสดงผล
                         
                         unit_rate = float(it.get("unit_rate_total", it.get("material_rate", 0.0) + it.get("labor_rate", 0.0)))
                         total_line_price = unit_rate * float(it["qty"])
@@ -1294,37 +1297,39 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         rate_p = Paragraph(f"{unit_rate:,.2f}", text_style)
                         amount_p = Paragraph(f"{total_line_price:,.2f}", text_style)
                         
-                        table_data.append([no_p, code_p, desc_p, qty_p, rate_p, amount_p])
+                        # [UPDATED] ใส่ unit_p เข้าไปต่อท้ายช่องจำนวน (qty_p)
+                        table_data.append([no_p, code_p, desc_p, qty_p, unit_p, rate_p, amount_p])
                         
                         table_styles_list.append(('ALIGN', (0, current_row_idx), (1, current_row_idx), 'CENTER'))
                         table_styles_list.append(('ALIGN', (2, current_row_idx), (2, current_row_idx), 'LEFT'))
-                        table_styles_list.append(('ALIGN', (3, current_row_idx), (3, current_row_idx), 'CENTER'))
-                        table_styles_list.append(('ALIGN', (4, current_row_idx), (5, current_row_idx), 'RIGHT'))
+                        table_styles_list.append(('ALIGN', (3, current_row_idx), (4, current_row_idx), 'CENTER')) # จัดคอลัมน์จำนวนและหน่วยให้อยู่ตรงกลาง
+                        table_styles_list.append(('ALIGN', (5, current_row_idx), (6, current_row_idx), 'RIGHT'))
                         table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
                         table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 5))
                         current_row_idx += 1
 
                     # -------------------------------------------------------------------------
-                    # ส่วนที่ 4: ตารางกลุ่มสรุปเงินท้ายเล่ม (อัปเดต colWidths บาลานซ์หน้ากระดาษ)
+                    # ส่วนที่ 4: ตารางกลุ่มสรุปเงินท้ายเล่ม (บาลานซ์ช่องความกว้างใหม่รองรับคอลัมน์ที่เพิ่มขึ้น)
                     # -------------------------------------------------------------------------
                     grand_total_boq = sum(float(it.get("total_price", 0.0)) for it in items_list)
                     
-                    table_data.append(["", "", "", "", Paragraph("<b>มูลค่ารวมทั้งสิ้น</b>", text_bold), Paragraph(f"<b>{grand_total_boq:,.2f}</b>", text_bold)])
+                    # [UPDATED] เนื่องจากตารางขยับเพิ่มมาเป็น 7 คอลัมน์ แถวสรุปด้านล่างต้องสั่งยืด SPAN คลุมตั้งแต่คอลัมน์ 0 ถึง 4 (ลำดับ ถึง Unit)
+                    table_data.append(["", "", "", "", "", Paragraph("<b>มูลค่ารวมทั้งสิ้น</b>", text_bold), Paragraph(f"<b>{grand_total_boq:,.2f}</b>", text_bold)])
                     
-                    table_styles_list.append(('SPAN', (0, current_row_idx), (3, current_row_idx)))
-                    table_styles_list.append(('BACKGROUND', (4, current_row_idx), (5, current_row_idx), colors.HexColor("#EAEAEA"))) 
-                    table_styles_list.append(('ALIGN', (4, current_row_idx), (4, current_row_idx), 'LEFT'))
-                    table_styles_list.append(('ALIGN', (5, current_row_idx), (5, current_row_idx), 'RIGHT'))
+                    table_styles_list.append(('SPAN', (0, current_row_idx), (4, current_row_idx))) # SPAN 5 ช่องแรกฝั่งซ้ายเป็นช่องโล่ง
+                    table_styles_list.append(('BACKGROUND', (5, current_row_idx), (6, current_row_idx), colors.HexColor("#EAEAEA"))) 
+                    table_styles_list.append(('ALIGN', (5, current_row_idx), (5, current_row_idx), 'LEFT'))
+                    table_styles_list.append(('ALIGN', (6, current_row_idx), (6, current_row_idx), 'RIGHT'))
                     table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
                     table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
                     
                     table_styles_list.append(('LINEBEFORE', (0, current_row_idx), (0, current_row_idx), 0, colors.white))
-                    table_styles_list.append(('LINEBELOW', (0, current_row_idx), (3, current_row_idx), 0, colors.white))
+                    table_styles_list.append(('LINEBELOW', (0, current_row_idx), (4, current_row_idx), 0, colors.white))
                     current_row_idx += 1
                     
-                    # [UPDATED] ขยายคอลัมน์แรกจาก 30 เป็น 40 เพื่อให้คำว่า "ลำดับ" อยู่ในบรรทัดเดียวกัน ไม่แตกแถว
-                    # สัดส่วนความกว้าง: [ลำดับ: 40, รหัสสินค้า: 70, รายการสินค้า: 210, จำนวน: 45, ราคา/หน่วย: 85, จำนวนเงินรวม: 85] รวมกว้าง 535 พอดีหน้าครับ
-                    pdf_table = Table(table_data, colWidths=[40, 70, 210, 45, 85, 85])
+                    # [UPDATED] เกลี่ยสัดส่วนความกว้างใหม่เพื่อให้รองรับหน้ากระดาษความกว้างรวม 535 เท่าเดิมเป๊ะ:
+                    # [ลำดับ: 40, รหัสสินค้า: 65, รายการสินค้า: 185, จำนวน: 40, Unit: 35, ราคา/หน่วย: 85, จำนวนเงินรวม: 85]
+                    pdf_table = Table(table_data, colWidths=[40, 65, 185, 40, 35, 85, 85])
                     pdf_table.setStyle(TableStyle(table_styles_list))
                     story.append(pdf_table)
                     story.append(Spacer(1, 40))
