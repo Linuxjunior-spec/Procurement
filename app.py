@@ -1255,7 +1255,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(Spacer(1, 15))
 
                     # -------------------------------------------------------------------------
-                    # ส่วนที่ 3: ตารางรายการพัสดุสินค้าจัดซื้อ
+                    # ส่วนที่ 3: ตารางรายการพัสดุสินค้าจัดซื้อ (ปรับปรุงแก้ไขคอลัมน์ ลำดับ)
                     # -------------------------------------------------------------------------
                     table_data = [[
                         Paragraph("<b>ลำดับ</b>", header_style),
@@ -1305,11 +1305,10 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         current_row_idx += 1
 
                     # -------------------------------------------------------------------------
-                    # ส่วนที่ 4: ตารางคำนวณและสรุปเงินท้ายเล่ม (ลบยอดรวมสินค้าและลบภาษี VAT ออก)
+                    # ส่วนที่ 4: ตารางกลุ่มสรุปเงินท้ายเล่ม (อัปเดต colWidths บาลานซ์หน้ากระดาษ)
                     # -------------------------------------------------------------------------
                     grand_total_boq = sum(float(it.get("total_price", 0.0)) for it in items_list)
                     
-                    # [FIXED] ตัดแถว รวมราคาสินค้า และ มูลค่าภาษี (7%) ออกทั้งหมดตามที่พี่บรีฟ ให้เหลือโชว์เฉพาะยอดรวมสุทธิสุดท้ายตัวเดียวครับ
                     table_data.append(["", "", "", "", Paragraph("<b>มูลค่ารวมทั้งสิ้น</b>", text_bold), Paragraph(f"<b>{grand_total_boq:,.2f}</b>", text_bold)])
                     
                     table_styles_list.append(('SPAN', (0, current_row_idx), (3, current_row_idx)))
@@ -1319,13 +1318,13 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
                     table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
                     
-                    # [FIXED] สั่งเคลียร์และปลดเส้นขอบแนวดิ่งนอกสุดฝั่งซ้ายรวมถึงเส้นขอบใต้ตารางออกทั้งหมด ไม่ให้เส้นหลุดตัดขวางช่องไฟเซ็นอนุมัติ
                     table_styles_list.append(('LINEBEFORE', (0, current_row_idx), (0, current_row_idx), 0, colors.white))
                     table_styles_list.append(('LINEBELOW', (0, current_row_idx), (3, current_row_idx), 0, colors.white))
                     current_row_idx += 1
                     
-                    # สร้างตารางข้อมูล
-                    pdf_table = Table(table_data, colWidths=[30, 70, 220, 45, 85, 85])
+                    # [UPDATED] ขยายคอลัมน์แรกจาก 30 เป็น 40 เพื่อให้คำว่า "ลำดับ" อยู่ในบรรทัดเดียวกัน ไม่แตกแถว
+                    # สัดส่วนความกว้าง: [ลำดับ: 40, รหัสสินค้า: 70, รายการสินค้า: 210, จำนวน: 45, ราคา/หน่วย: 85, จำนวนเงินรวม: 85] รวมกว้าง 535 พอดีหน้าครับ
+                    pdf_table = Table(table_data, colWidths=[40, 70, 210, 45, 85, 85])
                     pdf_table.setStyle(TableStyle(table_styles_list))
                     story.append(pdf_table)
                     story.append(Spacer(1, 40))
