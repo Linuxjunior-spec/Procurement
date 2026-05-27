@@ -991,10 +991,6 @@ elif main_menu == "🗂️ บริหาร Item Code":
     
     with item_tab1:
         st.markdown("### ➕ เพิ่มพัสดุและรหัสสินค้าใหม่เข้าสู่ระบบ")
-        next_itm_seq = len(st.session_state.item_codes_master) + 1
-        auto_itm_code = f"ITM-{next_itm_seq:04d}"
-        
-        i_code = st.text_input("รหัสสินค้า (Item Code)", value=auto_itm_code)
         
         cat_lay1, cat_lay2 = st.columns([5, 1])
         with cat_lay1:
@@ -1003,7 +999,36 @@ elif main_menu == "🗂️ บริหาร Item Code":
             st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
             if st.button("➕ ลงทะเบียนหมวดหมู่", use_container_width=True, help="เปิดหน้าต่างลงทะเบียนเพิ่มกลุ่มงานชิ้นใหม่"):
                 add_category_dialog()
-                
+
+        # =========================================================================
+        # 🎯 เริ่มต้นตรรกะการรันรหัสสินค้าอัตโนมัติด้วยอักษรนำของหมวดหมู่
+        # =========================================================================
+        if i_cat:
+            prefix_char = i_cat[0]  # ดึงอักษรตัวแรกของหมวดหมู่ เช่น "สายไฟ" -> "ส"
+            prefix = f"{prefix_char}-"
+            
+            max_seq = 0
+            # ลูปเช็กโค้ดที่มีอยู่แล้วในคลังวัสดุ เพื่อหาเลขลำดับที่สูงที่สุดของหมวดหมู่นี้
+            for item in st.session_state.item_codes_master:
+                code_str = item.get("code", "")
+                if code_str.startswith(prefix):
+                    try:
+                        # แยกเอาตัวเลขด้านหลังเครื่องหมายแดช (-) เช่น "ส-0005" -> 5
+                        current_num = int(code_str.split("-")[1])
+                        if current_num > max_seq:
+                            max_seq = current_num
+                    except (IndexError, ValueError):
+                        pass
+            
+            next_itm_seq = max_seq + 1
+            auto_itm_code = f"{prefix}{next_itm_seq:04d}"  # เช่น ส-0001
+        else:
+            auto_itm_code = "ITM-0001"
+            
+        # แสดงกล่องรหัสสินค้า โดยมีค่าเริ่มต้นเป็นค่ารหัสที่เจนให้ใหม่
+        i_code = st.text_input("รหัสสินค้า (Item Code)", value=auto_itm_code)
+        # =========================================================================
+        
         i_name = st.text_input("รายการวัสดุ / รายละเอียดพัสดุ (Item Description)", placeholder="เช่น CV 1C-150sq.mm (1Core) 0.6/1KV")
         
         u_lay1, u_lay2 = st.columns([5, 1])
