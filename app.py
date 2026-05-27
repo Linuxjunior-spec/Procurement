@@ -8,13 +8,13 @@ import subprocess
 import platform
 import plotly.express as px
 
-# นำเข้า Library สำหรับสร้างไฟล์ PDF ภาษาไทยมาตรฐาน
+# แก้ไขจุดนี้นะครับพี่ เพิ่ม Image เข้าไปในบรรทัดนี้
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ตั้งค่าหน้าจอโปรแกรม
 st.set_page_config(page_title="Procurement Workspace", layout="wide")
