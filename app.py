@@ -1161,21 +1161,22 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
                     styles = getSampleStyleSheet()
                     
-                    # --- [UPDATE] อัปเดตลงทะเบียนฟอนต์ใหม่เป็น DB Heavent v3.2.2 ---
                     try:
-                        # ค้นหาไฟล์พิกัดฟอนต์ DB Heavent ในโฟลเดอร์โปรแกรม
                         font_file_path = os.path.join(BASE_DIR, 'DB Heavent v3.2.2.ttf')
                         pdfmetrics.registerFont(TTFont('DBHeavent', font_file_path))
                         
-                        # กำหนดสไตล์โดยตั้งค่านำฟอนต์ DBHeavent ไปใช้งาน (ฟอนต์ประเภทนี้มักจะมีขนาดค่อนข้างผอมบาง แนะนำให้เพิ่ม fontSize ขึ้นเล็กน้อยเพื่อให้อ่านง่ายครับ)
-                        title_style = ParagraphStyle('TitleStyle', fontName='DBHeavent', fontSize=26, leading=28, alignment=1, spaceAfter=20)
-                        text_style = ParagraphStyle('TextStyle', fontName='DBHeavent', fontSize=16, leading=18)
+                        # [ADJUSTED] ปรับลดขนาดอักษรลงมาเล็กน้อย และขยาย leading ให้กว้างขึ้นเพื่อบาลานซ์ช่องไฟไทย-อังกฤษ
+                        title_style = ParagraphStyle('TitleStyle', fontName='DBHeavent', fontSize=24, leading=26, alignment=1, spaceAfter=20)
+                        text_style = ParagraphStyle('TextStyle', fontName='DBHeavent', fontSize=15, leading=20) # เพิ่มความสูงบรรทัดเป็น 20
+                        
+                        # สร้างสไตล์พิเศษสำหรับตัวหนังสือหัวตารางและตัวเลขท้ายตารางโดยเฉพาะ เพื่อคุมสัดส่วน
+                        header_style = ParagraphStyle('HeaderStyle', fontName='DBHeavent', fontSize=14, leading=16, alignment=1)
                         font_to_use = 'DBHeavent'
                     except Exception as e:
-                        # หากไม่พบไฟล์ฟอนต์ในเครื่อง ให้ถอยกลับไปใช้ Helvetica มาตรฐานระบบ
                         st.error(f"⚠️ ไม่พบไฟล์ฟอนต์ 'DB Heavent v3.2.2.ttf' ในโฟลเดอร์โปรแกรม ระบบจะสลับไปใช้ฟอนต์มาตรฐานแทน: {e}")
                         title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=20, alignment=1, spaceAfter=20)
                         text_style = ParagraphStyle('TextStyle', fontName='Helvetica', fontSize=12)
+                        header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=11, alignment=1)
                         font_to_use = 'Helvetica'
                         
                     story = []
@@ -1188,37 +1189,47 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(Spacer(1, 15))
                     
                     # --- โครงสร้างตารางเนื้อหาพัสดุในไฟล์ PDF ---
-                    table_data = [["No.", "Item Code", "Description", "Unit", "Qty", "Unit Rate", "Total"]]
+                    # ครอบหัวตารางทั้งหมดด้วย Paragraph เพื่อให้คุมขนาดฟอนต์ได้เท่ากัน 100% ไม่หลุดสัดส่วน
+                    table_data = [[
+                        Paragraph("<b>No.</b>", header_style),
+                        Paragraph("<b>Item Code</b>", header_style),
+                        Paragraph("<b>Description</b>", header_style),
+                        Paragraph("<b>Unit</b>", header_style),
+                        Paragraph("<b>Qty</b>", header_style),
+                        Paragraph("<b>Unit Rate</b>", header_style),
+                        Paragraph("<b>Total</b>", header_style)
+                    ]]
                     
                     for i, it in enumerate(curr_pur_obj["items"]):
-                        # ครอบชื่อไอเทมด้วย Paragraph เสมอ เพื่อให้ฟอนต์ภาษาไทยทำงานและช่วยตัดคำขึ้นบรรทัดใหม่เมื่อยาวเกินไป
-                        desc_paragraph = Paragraph(it["item_name"], text_style)
+                        # ครอบข้อมูลทุกช่องในแถวตารางด้วย Paragraph เพื่อบังคับใช้ text_style ชุดเดียวกันทั้งหมด
+                        no_p = Paragraph(str(i+1), text_style)
+                        code_p = Paragraph(it["item_code"], text_style)
+                        desc_p = Paragraph(it["item_name"], text_style)
+                        unit_p = Paragraph(it["unit"], text_style)
+                        qty_p = Paragraph(f"{it['qty']:,.0f}", text_style)
+                        rate_p = Paragraph(f"{it['unit_rate_total']:,.2f}", text_style)
+                        total_p = Paragraph(f"{it['total_price']:,.2f}", text_style)
                         
-                        table_data.append([
-                            str(i+1), 
-                            it["item_code"], 
-                            desc_paragraph, 
-                            it["unit"], 
-                            f"{it['qty']:,.0f}", 
-                            f"{it['unit_rate_total']:,.2f}", 
-                            f"{it['total_price']:,.2f}"
-                        ])
+                        table_data.append([no_p, code_p, desc_p, unit_p, qty_p, rate_p, total_p])
                         
                     grand_total_label = Paragraph("<b>GRAND TOTAL:</b>", text_style)
-                    table_data.append(["", "", "", "", "", grand_total_label, f"{grand_total_boq:,.2f}"])
+                    grand_total_val = Paragraph(f"<b>{grand_total_boq:,.2f}</b>", text_style)
+                    table_data.append(["", "", "", "", "", grand_total_label, grand_total_val])
                     
                     pdf_table = Table(table_data, colWidths=[25, 60, 200, 35, 35, 75, 80])
                     pdf_table.setStyle(TableStyle([
                         ('BACKGROUND', (0,0), (-1,0), colors.grey),
                         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), # จัดตำแหน่งข้อความทุกลำดับให้อยู่กึ่งกลางแนวดิ่ง
                         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                        ('ALIGN', (2,1), (2,-1), 'LEFT'),  
+                        ('ALIGN', (2,1), (2,-2), 'LEFT'),  
                         ('ALIGN', (-2,1), (-1,-1), 'RIGHT'), 
-                        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+                        ('TOPPADDING', (0,0), (-1,-1), 8),    # เพิ่มเนื้อที่ขอบบนของช่องตาราง
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 8), # เพิ่มเนื้อที่ขอบล่างของช่องตาราง
                         ('BACKGROUND', (0,1), (-1,-2), colors.beige),
                         ('GRID', (0,0), (-1,-2), 1, colors.black),
                         ('LINEABOVE', (0,-1), (-1,-1), 1.5, colors.black),
-                        ('FONTNAME', (0,0), (-1,-1), font_to_use) # เรียกใช้ตัวแปรฟอนต์ที่เปิดใช้งานสำเร็จ
+                        ('FONTNAME', (0,0), (-1,-1), font_to_use)
                     ]))
                     
                     story.append(pdf_table)
