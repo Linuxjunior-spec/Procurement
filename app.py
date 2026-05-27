@@ -908,15 +908,16 @@ elif main_menu == "📊 BOQ Supplier":
                     else: r_c5.caption("❌ ไม่มีไฟล์แนบ")
 
     with boq_tab2:
-        st.markdown("### 🔍 ค้นหาและบริหารจัดการประวัติราคาวัสดุ-ค่าแรงแยกรายการ (Single Selection)")
-        st.caption("💡 พี่สามารถดับเบิ้ลคลิกแก้ไขราคาบนตารางได้โดยตรง หรือเลือกหมายเลขข้อด้านล่างเพื่อกดลบ/แก้ไขข้อมูลทั่วไป")
+        st.markdown("### 🔍 ค้นหาและบริหารจัดการประวัติราคาวัสดุ-ค่าแรงแยกรายการ")
+        st.caption("💡 พี่สามารถติ๊กถูกหน้าข้อที่ต้องการ (เลือกได้ทีละ 1 ข้อ) เพื่อเปิดเครื่องมือแก้ไขข้อมูลทั่วไป/เปลี่ยนซัพพลายเออร์ หรือกดลบรายการนั้นออกครับ")
         
         search_lay1, search_lay2 = st.columns([4, 1])
         search_query = search_lay1.text_input("ค้นหาประวัติราคา", placeholder="พิมพ์ชื่อรายการวัสดุ หมวดหมู่ หรือชื่อร้านค้า เช่น CV 1C-150sq.mm", label_visibility="collapsed")
         
-        # --- 1. รวบรวมข้อมูลจากทั้ง 2 แหล่ง ---
+        # --- 1. รวบรวมข้อมูลจากทั้ง 2 แหล่ง (RFQ History และ Standalone Prices) ---
         flat_records = []
         
+        # ดึงจากระบบ RFQ
         for rfq_idx, rfq in enumerate(st.session_state.rfq_history):
             for sup_idx, sup in enumerate(rfq.get("suppliers", [])):
                 for item_idx, item in enumerate(sup.get("items", [])):
@@ -937,6 +938,7 @@ elif main_menu == "📊 BOQ Supplier":
                         "อ้างอิงแหล่งข้อมูล": f"RFQ: {rfq['id']}"
                     })
                     
+        # ดึงจากระบบราคาตรง (Standalone)
         for sa_idx, item in enumerate(st.session_state.standalone_prices):
             flat_records.append({
                 "source_type": "standalone",
@@ -955,6 +957,7 @@ elif main_menu == "📊 BOQ Supplier":
         if not flat_records:
             st.info("💡 ปัจจุบันยังไม่มีข้อมูลรายการวัสดุแยกย่อยในคลังระบบ")
         else:
+            # ทำการกรองข้อมูลตาม Keyword
             if search_query:
                 q = search_query.strip().lower()
                 filtered_records = [r for r in flat_records if q in r["รายการวัสดุ"].lower() or q in r["หมวดหมู่"].lower() or q in r["ชื่อบริษัท/ผู้ขาย"].lower()]
@@ -964,70 +967,105 @@ elif main_menu == "📊 BOQ Supplier":
             st.markdown(f"พบรายการราคาวัสดุทั้งหมด **{len(filtered_records)}** รายการ")
             
             if filtered_records:
+                # แปลงเป็น DataFrame และสร้างช่อง Checkbox ให้ติ๊กเลือกหน้าตาราง
                 df_history = pd.DataFrame(filtered_records)
-                df_history.insert(0, "ลำดับที่ (No.)", range(1, len(df_history) + 1))
+                df_history.insert(0, "เลือกรายการ 🎯", False)
                 
-                show_cols = ["ลำดับที่ (No.)", "หมวดหมู่", "รายการวัสดุ", "ชื่อบริษัท/ผู้ขาย", "หน่วย", "ราคาวัสดุ / หน่วย (บาท)", "ค่าแรง/หน่วย (บาท)", "ราคารวมต่อหน่วย (บาท)", "วันที่อัปเดตราคา", "อ้างอิงแหล่งข้อมูล"]
+                show_cols = ["เลือกรายการ 🎯", "หมวดหมู่", "รายการวัสดุ", "ชื่อบริษัท/ผู้ขาย", "หน่วย", "ราคาวัสดุ / หน่วย (บาท)", "ค่าแรง/หน่วย (บาท)", "ราคารวมต่อหน่วย (บาท)", "วันที่อัปเดตราคา", "อ้างอิงแหล่งข้อมูล"]
                 
+                # แสดงผลตารางแบบ Data Editor เพื่อให้พี่ติ๊กเลือกข้อได้สดๆ
                 edited_df = st.data_editor(
                     df_history[show_cols],
                     use_container_width=True,
                     hide_index=True,
                     column_config={
-                        "ลำดับที่ (No.)": st.column_config.NumberColumn(format="%d", disabled=True),
+                        "เลือกรายการ 🎯": st.column_config.CheckboxColumn(required=True),
                         "หมวดหมู่": st.column_config.TextColumn(disabled=True),
                         "รายการวัสดุ": st.column_config.TextColumn(disabled=True),
                         "ชื่อบริษัท/ผู้ขาย": st.column_config.TextColumn(disabled=True),
                         "หน่วย": st.column_config.TextColumn(disabled=True),
-                        "อ้างอิงแหล่งข้อมูล": st.column_config.TextColumn(disabled=True),
-                        "ราคาวัสดุ / หน่วย (บาท)": st.column_config.NumberColumn(format="%,.2f", min_value=0.0),
-                        "ค่าแรง/หน่วย (บาท)": st.column_config.NumberColumn(format="%,.2f", min_value=0.0),
-                        "ราคารวมต่อหน่วย (บาท)": st.column_config.NumberColumn(format="%,.2f", disabled=True)
+                        "ราคาวัสดุ / หน่วย (บาท)": st.column_config.NumberColumn(format="%,.2f", disabled=True),
+                        "ค่าแรง/หน่วย (บาท)": st.column_config.NumberColumn(format="%,.2f", disabled=True),
+                        "ราคารวมต่อหน่วย (บาท)": st.column_config.NumberColumn(format="%,.2f", disabled=True),
+                        "วันที่อัปเดตราคา": st.column_config.TextColumn(disabled=True),
+                        "อ้างอิงแหล่งข้อมูล": st.column_config.TextColumn(disabled=True)
                     }
                 )
                 
-                st.markdown("---")
-                st.markdown("##### ⚙️ เครื่องมือจัดการรายการพัสดุแบบเจาะจงชิ้น")
+                # ตรวจสอบการติ๊กเลือกแถวบนตาราง
+                checked_rows = edited_df[edited_df["เลือกรายการ 🎯"] == True]
                 
-                select_options = [f"ข้อที่ {i}: {r['รายการวัสดุ']} [{r['ชื่อบริษัท/ผู้ขาย']}]" for i, r in zip(df_history["ลำดับที่ (No.)"], filtered_records)]
-                chosen_target = st.selectbox("เลือกรายการลำดับข้อที่พี่ต้องการสั่งการสำหรับแก้ไขหรือลบ:", select_options)
-                
-                if chosen_target:
-                    chosen_no = int(chosen_target.split(":")[0].replace("ข้อที่ ", ""))
-                    target_row = filtered_records[chosen_no - 1]
+                if len(checked_rows) > 1:
+                    st.warning("⚠️ พี่ติ๊กเลือกพร้อมกันหลายข้อเกินไปครับ กรุณาเลือกติ๊กถูกแค่ 'ข้อเดียว' ที่ต้องการจัดการครับ")
+                elif len(checked_rows) == 1:
+                    st.markdown("---")
+                    # ดึงข้อมูลแถวตัวจริงที่โดนเลือก
+                    target_idx = checked_rows.index[0]
+                    target_row = filtered_records[target_idx]
                     
-                    act_col1, act_col2 = st.columns([1, 1])
+                    st.markdown(f"### ⚙️ เครื่องมือจัดการ: *{target_row['รายการวัสดุ']}*")
                     
-                    with act_col1:
-                        with st.expander("📝 คลิกเพื่อเปิดหน้าต่างแก้ไขข้อมูลข้อความพัสดุ"):
-                            edit_cat = st.selectbox("แก้ไขหมวดหมู่", st.session_state.categories_list, index=st.session_state.categories_list.index(target_row["หมวดหมู่"]) if target_row["หมวดหมู่"] in st.session_state.categories_list else 0)
-                            edit_name = st.text_input("แก้ไขรายการวัสดุ / รายละเอียด", value=target_row["รายการวัสดุ"])
-                            edit_unit = st.selectbox("แก้ไขหน่วยนับ", st.session_state.units_list, index=st.session_state.units_list.index(target_row["หน่วย"]) if target_row["หน่วย"] in st.session_state.units_list else 0)
-                            
-                            if st.button("💾 ยืนยันบันทึกการแก้ไขข้อความ", use_container_width=True, type="primary"):
-                                if target_row["source_type"] == "rfq":
-                                    r_idx, s_idx, i_idx = target_row["index_keys"]
-                                    item_ptr = st.session_state.rfq_history[r_idx]["suppliers"][s_idx]["items"][i_idx]
-                                    item_ptr["category"] = edit_cat
-                                    item_ptr["item_name"] = edit_name
-                                    item_ptr["unit"] = edit_unit
-                                    item_ptr["date_updated"] = datetime.now().strftime('%d/%m/%Y')
-                                elif target_row["source_type"] == "standalone":
-                                    sa_idx = target_row["index_keys"]
-                                    item_ptr = st.session_state.standalone_prices[sa_idx]
-                                    item_ptr["category"] = edit_cat
-                                    item_ptr["item_name"] = edit_name
-                                    item_ptr["unit"] = edit_unit
-                                    item_ptr["date_updated"] = datetime.now().strftime('%d/%m/%Y')
-                                    
-                                save_data(st.session_state.rfq_history)
-                                save_standalone_prices(st.session_state.standalone_prices)
-                                st.toast("แก้ไขข้อมูลข้อความพัสดุสำเร็จแล้ว!", icon="✅")
-                                st.rerun()
+                    # ตรวจสอบรายชื่อซัพพลายเออร์ที่มีทั้งหมดในระบบมาสเตอร์คู่ค้า
+                    if st.session_state.suppliers_master:
+                        master_sups = [s["name"] for s in st.session_state.suppliers_master]
+                        if target_row["ชื่อบริษัท/ผู้ขาย"] not in master_sups:
+                            master_sups.append(target_row["ชื่อบริษัท/ผู้ขาย"])
+                        current_sup_idx = master_sups.index(target_row["ชื่อบริษัท/ผู้ขาย"])
+                    else:
+                        master_sups = [target_row["ชื่อบริษัท/ผู้ขาย"]]
+                        current_sup_idx = 0
+                    
+                    # วาง Layout เครื่องมือสำหรับการแก้ไขข้อมูลย่อยแบบ Single Row
+                    with st.form("edit_single_record_form", clear_on_submit=False):
+                        col_e1, col_e2 = st.columns(2)
+                        with col_e1:
+                            edit_sup = st.selectbox("📝 แก้ไข/เปลี่ยนชื่อผู้ขาย (Supplier)", master_sups, index=current_sup_idx)
+                            edit_cat = st.selectbox("แก้ไขหมวดหมู่งาน", st.session_state.categories_list, index=st.session_state.categories_list.index(target_row["หมวดหมู่"]) if target_row["หมวดหมู่"] in st.session_state.categories_list else 0)
+                            edit_name = st.text_input("แก้ไขรายการวัสดุ / รายละเอียดพัสดุ", value=target_row["รายการวัสดุ"])
+                        
+                        with col_e2:
+                            edit_unit = st.selectbox("แก้ไขหน่วยนับพัสดุ", st.session_state.units_list, index=st.session_state.units_list.index(target_row["หน่วย"]) if target_row["หน่วย"] in st.session_state.units_list else 0)
+                            edit_mat = st.number_input("แก้ไขราคาวัสดุ/หน่วย (บาท)", min_value=0.0, value=target_row["ราคาวัสดุ / หน่วย (บาท)"], format="%.2f", step=1.0)
+                            edit_lab = st.number_input("แก้ไขค่าแรงต่อหน่วย (บาท)", min_value=0.0, value=target_row["ค่าแรง/หน่วย (บาท)"], format="%.2f", step=1.0)
+                        
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        btn_space1, btn_space2 = st.columns([3, 1])
+                        
+                        # ปุ่มบันทึกการแก้ไข
+                        if btn_space1.form_submit_button("💾 บันทึกการแก้ไขข้อมูลทั้งหมดของรายการนี้", use_container_width=True):
+                            if target_row["source_type"] == "rfq":
+                                r_idx, s_idx, i_idx = target_row["index_keys"]
+                                # แก้ไขฝั่งรากเงื่อนไข Supplier ของใบงาน RFQ
+                                st.session_state.rfq_history[r_idx]["suppliers"][s_idx]["name"] = edit_sup
                                 
-                    with act_col2:
-                        st.markdown("<div style='padding-top: 5px;'></div>", unsafe_allow_html=True)
-                        if st.button(f"🗑️ สั่งลบข้อมูล {chosen_target.split(':')[0]} นี้ออกจากคลังถาวร", type="primary", use_container_width=True):
+                                item_ptr = st.session_state.rfq_history[r_idx]["suppliers"][s_idx]["items"][i_idx]
+                                item_ptr["category"] = edit_cat
+                                item_ptr["item_name"] = edit_name
+                                item_ptr["unit"] = edit_unit
+                                item_ptr["material_rate"] = edit_mat
+                                item_ptr["labor_rate"] = edit_lab
+                                item_ptr["total_rate"] = edit_mat + edit_lab
+                                item_ptr["date_updated"] = datetime.now().strftime('%d/%m/%Y')
+                                
+                            elif target_row["source_type"] == "standalone":
+                                sa_idx = target_row["index_keys"]
+                                item_ptr = st.session_state.standalone_prices[sa_idx]
+                                item_ptr["supplier_name"] = edit_sup
+                                item_ptr["category"] = edit_cat
+                                item_ptr["item_name"] = edit_name
+                                item_ptr["unit"] = edit_unit
+                                item_ptr["material_rate"] = edit_mat
+                                item_ptr["labor_rate"] = edit_lab
+                                item_ptr["total_rate"] = edit_mat + edit_lab
+                                item_ptr["date_updated"] = datetime.now().strftime('%d/%m/%Y')
+                                
+                            save_data(st.session_state.rfq_history)
+                            save_standalone_prices(st.session_state.standalone_prices)
+                            st.toast("อัปเดตข้อมูลและราคาพัสดุสำเร็จเรียบร้อย!", icon="✅")
+                            st.rerun()
+                            
+                        # ปุ่มลบแถวนี้ออกจากระบบ
+                        if btn_space2.form_submit_button("🗑️ ลบรายการนี้ออก", use_container_width=True, type="primary"):
                             if target_row["source_type"] == "rfq":
                                 r_idx, s_idx, i_idx = target_row["index_keys"]
                                 st.session_state.rfq_history[r_idx]["suppliers"][s_idx]["items"].pop(i_idx)
@@ -1037,39 +1075,8 @@ elif main_menu == "📊 BOQ Supplier":
                                 
                             save_data(st.session_state.rfq_history)
                             save_standalone_prices(st.session_state.standalone_prices)
-                            st.toast("ลบข้อมูลประวัติราคาที่เลือกออกเรียบร้อยแล้ว!", icon="🗑️")
+                            st.toast("ลบรายการประวัติราคาเรียบร้อยแล้ว!", icon="🗑️")
                             st.rerun()
-
-                mat_changed = (edited_df["ราคาวัสดุ / หน่วย (บาท)"] != df_history["ราคาวัสดุ / หน่วย (บาท)"])
-                lab_changed = (edited_df["ค่าแรง/หน่วย (บาท)"] != df_history["ค่าแรง/หน่วย (บาท)"])
-                
-                if mat_changed.any() or lab_changed.any():
-                    st.markdown("---")
-                    if st.button("💾 ตรวจพบการแก้ไขตัวเลขราคาบนตาราง • กดคลิกตรงนี้เพื่อบันทึกราคาทั้งหมด", use_container_width=True):
-                        for idx in range(len(edited_df)):
-                            new_mat = float(edited_df.iloc[idx]["ราคาวัสดุ / หน่วย (บาท)"])
-                            new_lab = float(edited_df.iloc[idx]["ค่าแรง/หน่วย (บาท)"])
-                            orig_row = filtered_records[idx]
-                            
-                            if orig_row["source_type"] == "rfq":
-                                r_idx, s_idx, i_idx = orig_row["index_keys"]
-                                target_item = st.session_state.rfq_history[r_idx]["suppliers"][s_idx]["items"][i_idx]
-                                target_item["material_rate"] = new_mat
-                                target_item["labor_rate"] = new_lab
-                                target_item["total_rate"] = new_mat + new_lab
-                                target_item["date_updated"] = datetime.now().strftime('%d/%m/%Y')
-                            elif orig_row["source_type"] == "standalone":
-                                sa_idx = orig_row["index_keys"]
-                                target_item = st.session_state.standalone_prices[sa_idx]
-                                target_item["material_rate"] = new_mat
-                                target_item["labor_rate"] = new_lab
-                                target_item["total_rate"] = new_mat + new_lab
-                                target_item["date_updated"] = datetime.now().strftime('%d/%m/%Y')
-                                
-                        save_data(st.session_state.rfq_history)
-                        save_standalone_prices(st.session_state.standalone_prices)
-                        st.toast("อัปเดตแก้ไขตัวเลขราคาบนตารางสำเร็จ!", icon="✅")
-                        st.rerun()
 
     with boq_tab3:
         st.markdown("### ➕ บันทึกข้อมูลวัสดุตรงเข้าคลังราคา (ไม่อ้างอิงใบงาน RFQ)")
