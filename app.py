@@ -1039,4 +1039,64 @@ elif main_menu == "🗂️ บริหาร Item Code":
         
         # แถวเลือกหน่วยนับ และ ปุ่มเพิ่มหน่วยนับกลาง
         u_lay1, u_lay2 = st.columns([5, 1])
-        with u_lay1:
+        with u_lay1: 
+            i_unit = st.selectbox("3. หน่วยนับพัสดุ (Unit)", st.session_state.units_list)
+        with u_lay2:
+            st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("➕ ลงทะเบียนหน่วย", use_container_width=True, help="เปิดหน้าต่างลงทะเบียนเพิ่มหน่วยนับชิ้นใหม่"): 
+                add_unit_dialog()
+                
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ปุ่มบันทึกข้อมูลหลัก
+        if st.button("💾 บันทึกรหัสพัสดุนี้เข้าคลังมาสเตอร์", use_container_width=True, type="primary"):
+            if i_code and i_name:
+                i_code = i_code.strip()
+                i_name = i_name.strip()
+                
+                # ตรวจสอบเพื่อป้องกันการบันทึกรหัสซ้ำ
+                if any(x["code"] == i_code for x in st.session_state.item_codes_master): 
+                    st.error(f"❌ ไม่สามารถบันทึกได้ เนื่องจากรหัสสินค้า '{i_code}' มีอยู่ในระบบแล้ว")
+                else:
+                    # บันทึกเฉพาะโครงสร้างข้อมูลวัสดุหลักตามมาตรฐานจัดซื้อ
+                    st.session_state.item_codes_master.append({
+                        "code": i_code, 
+                        "category": i_cat, 
+                        "item_name": i_name, 
+                        "unit": i_unit
+                    })
+                    save_item_codes(st.session_state.item_codes_master)
+                    st.toast(f"✅ บันทึกรหัสสินค้า {i_code} เข้าสารบบกลางเรียบร้อย!", icon="🎉")
+                    st.rerun()
+            else:
+                st.error("❌ กรุณากรอกรหัสสินค้าและรายละเอียดพัสดุให้ครบถ้วนก่อนกดบันทึก")
+
+    with item_tab2:
+        if not st.session_state.item_codes_master: 
+            st.info("💡 ปัจจุบันยังไม่มีข้อมูลวัสดุในคลัง")
+        else:
+            # ปรับตารางทำเนียบรหัสสินค้าให้คลีน แสดงเฉพาะข้อมูลคุณลักษณะพัสดุ ไม่ปนเรื่องราคา
+            df_items_master = pd.DataFrame(st.session_state.item_codes_master)
+            
+            df_display = df_items_master[["code", "category", "item_name", "unit"]]
+            df_display.columns = ["รหัสสินค้า (Item Code)", "หมวดหมู่พัสดุ", "รายการวัสดุ / รายละเอียด", "หน่วยนับ (Unit)"]
+            
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            item_list_del = [f"[{i['code']}] {i['item_name']}" for i in st.session_state.item_codes_master]
+            selected_item_del_display = st.selectbox("เลือกรหัสพัสดุที่ต้องการคัดออก:", item_list_del)
+            
+            if st.button("🗑️ ยืนยันการลบรหัสสินค้าออกจากคลังหลัก"):
+                target_del_code = selected_item_del_display.split("]")[0].replace("[", "")
+                is_item_used_rfq = any(item.get("item_code") == target_del_code for rfq in st.session_state.rfq_history for sup in rfq.get("suppliers", []) for item in sup.get("items", []))
+                is_item_used_standalone = any(x.get("item_code") == target_del_code for x in st.session_state.standalone_prices)
+                
+                if is_item_used_rfq or is_item_used_standalone: 
+                    st.error("❌ ไม่สามารถลบได้ เนื่องจากรหัสนี้ถูกนำไปใช้งานบันทึกราคาในประวัติจัดซื้อแล้ว")
+                else:
+                    item_to_remove = next(i for i in st.session_state.item_codes_master if i["code"] == target_del_code)
+                    st.session_state.item_codes_master.remove(item_to_remove)
+                    save_item_codes(st.session_state.item_codes_master)
+                    st.success(f"ลบรหัสสินค้าเรียบร้อย")
+                    st.rerun()
