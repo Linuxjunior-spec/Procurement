@@ -11,7 +11,7 @@ import plotly.express as px
 # ตั้งค่าหน้าจอโปรแกรม
 st.set_page_config(page_title="Procurement Workspace", layout="wide")
 
-# ล็อกที่อยู่โฟลเดอร์หลักในเครื่องคอมพิวเตอร์ของคุณให้ตายตัว (Absolute Path)
+# ล็อกที่อยู่โฟลเดอร์หลักเมื่อรันบนคลาวด์ให้อยู่ในตำแหน่งทำงานปัจจุบัน (Relative Path)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if not os.path.exists(BASE_DIR):
@@ -173,7 +173,7 @@ def edit_contacts_popup(sup_obj, idx_master):
         c_name = ec_c1.text_input("ชื่อผู้ติดต่อ", value=contact.get("name", ""), key=f"ec_n_{i}")
         c_phone = ec_c2.text_input("เบอร์โทรศัพท์", value=contact.get("phone", ""), key=f"ec_p_{i}")
         c_email = ec_c3.text_input("Email", value=contact.get("email", ""), key=f"ec_e_{i}")
-        c_line = c_c4.text_input("Line ID", value=contact.get("line", ""), key=f"ec_l_{i}")
+        c_line = ec_c4.text_input("Line ID", value=contact.get("line", ""), key=f"ec_l_{i}")
         
         if st.button("🗑️ ลบผู้ติดต่อคนนี้", key=f"btn_del_ec_{i}"):
             st.session_state.edit_contacts_list.pop(i)
@@ -235,20 +235,16 @@ def add_category_dialog():
 
 # --- ฟังก์ชันสำหรับสั่งเปิดโฟลเดอร์ในเครื่องคอมพิวเตอร์โดยตรง ---
 def open_local_folder(folder_path):
-    # ปรับให้ปลอดภัยเมื่อรันบนคลาวด์
     if not os.path.isabs(folder_path):
         folder_path = os.path.join(BASE_DIR, folder_path)
         
     if os.path.exists(folder_path):
         try:
-            # ตรวจสอบว่ารันบนเครื่องตัวเอง (Local) หรือบน Cloud
-            # ถ้าเป็นบนคลาวด์ทั่วไป มักจะไม่มีระบบเปิดโฟลเดอร์เด้งขึ้นมา
             if platform.system() == "Windows": 
                 os.startfile(folder_path)
                 st.toast(f"📂 เปิดโฟลเดอร์สำเร็จ", icon="✅")
             else:
-                # ถ้ารันบนระบบอื่น (เช่น Linux บนคลาวด์) ให้แจ้งเตือนที่อยู่โฟลเดอร์แทนการสั่งเปิด
-                st.info(f"📁 ระบบกำลังทำงานอยู่บนเซิร์ฟเวอร์ เส้นทางโฟลเดอร์คือ: {folder_path}")
+                st.info(f"📁 ระบบกำลังทำงานบนเซิร์ฟเวอร์ เส้นทางโฟลเดอร์คือ: {folder_path}")
         except Exception as e: 
             st.info(f"📁 เส้นทางเก็บข้อมูลวัสดุ: {folder_path}")
     else: 
@@ -496,7 +492,6 @@ elif main_menu == "📦 ระบบจัดการ RFQ":
                         st.success(f"บันทึกสำเร็จ!")
                         st.rerun()
 
-    # --- แท็บย่อย 2: อัปเดตราคา (ดักจับ Error กรณีคลังจัดซื้อยังว่างสะอาดเรียบร้อย) ---
     with sub_tab2:
         if not st.session_state.rfq_history:
             st.warning("ยังไม่มีข้อมูล RFQ ในระบบ กรุณาไปสร้างใบงานที่แท็บเปิด RFQ ใหม่ก่อนครับ")
@@ -606,7 +601,8 @@ elif main_menu == "📦 ระบบจัดการ RFQ":
                     f_path = s.get("file_path", "")
                     if f_path and not os.path.isabs(f_path): f_path = os.path.join(BASE_DIR, f_path)
                     if f_path and os.path.exists(f_path):
-                        with open(f_path, "rb") as f: r_col5.download_button(label="📁 เปิด/ดาวน์โหลด", data=f.read(), file_name=os.path.basename(f_path), key=f"btn_dl_tab2_{selected_rfq_id}_{idx}")
+                        with open(f_path, "rb") as file_data:
+                            r_col5.download_button(label="📁 เปิด/ดาวน์โหลด", data=file_data.read(), file_name=os.path.basename(f_path), key=f"btn_dl_tab2_{selected_rfq_id}_{idx}")
                     else: r_col5.caption("❌ ไม่มีไฟล์แนบ")
 
     with sub_tab3:
@@ -911,7 +907,7 @@ elif main_menu == "📊 BOQ Supplier":
                         with open(f_p, "rb") as f: r_c5.download_button(label="📁 เปิดดูไฟล์ใบเสนอราคา", data=f.read(), file_name=os.path.basename(f_p), key=f"dl_boq_view_{idx}")
                     else: r_c5.caption("❌ ไม่มีไฟล์แนบ")
 
-   with boq_tab2:
+    with boq_tab2:
         st.markdown("### 🔍 ค้นหาและบริหารจัดการประวัติราคาวัสดุ-ค่าแรงแยกรายการ (Single Selection)")
         st.caption("💡 พี่สามารถดับเบิ้ลคลิกแก้ไขราคาบนตารางได้โดยตรง หรือเลือกหมายเลขข้อด้านล่างเพื่อกดลบ/แก้ไขข้อมูลทั่วไป")
         
@@ -1075,7 +1071,6 @@ elif main_menu == "📊 BOQ Supplier":
                         st.toast("อัปเดตแก้ไขตัวเลขราคาบนตารางสำเร็จ!", icon="✅")
                         st.rerun()
 
-    # แท็บสุดท้ายที่ยังติดประเด็นอยู่ (ปิดบล็อก BOQ ดึงวงเล็บปีกกาและจัดเยื้องแถวระดับเดียวกับไอคอนหลัก)
     with boq_tab3:
         st.markdown("### ➕ บันทึกข้อมูลวัสดุตรงเข้าคลังราคา (ไม่อ้างอิงใบงาน RFQ)")
         if not st.session_state.item_codes_master: st.error("⚠️ ยังไม่มีฐานข้อมูลวัสดุกลาง")
@@ -1112,7 +1107,7 @@ elif main_menu == "📊 BOQ Supplier":
                             st.rerun()
 
 # =========================================================================
-# 🗂️ บริหาร Item Code (ล็อกระยะ Tab ให้อยู่ระดับเสมอกันเรียบร้อยแล้ว)
+# 🗂️ บริหาร Item Code
 # =========================================================================
 elif main_menu == "🗂️ บริหาร Item Code":
     st.title("🗂️ ศูนย์บริหารคลังฐานข้อมูลสินค้าและรหัสสินค้ากลาง (Item Code Master)")
