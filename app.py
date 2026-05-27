@@ -918,10 +918,9 @@ elif main_menu == "📊 BOQ Supplier":
         search_lay1, search_lay2 = st.columns([4, 1])
         search_query = search_lay1.text_input("ค้นหาประวัติราคา", placeholder="พิมพ์ชื่อรายการวัสดุ หมวดหมู่ หรือชื่อร้านค้า เช่น CV 1C-150sq.mm", label_visibility="collapsed")
         
-        # --- 1. รวบรวมข้อมูลจากทั้ง 2 แหล่ง (RFQ History และ Standalone Prices) ---
+        # --- 1. รวบรวมข้อมูลจากทั้ง 2 แหล่ง ---
         flat_records = []
         
-        # ดึงจากระบบ RFQ
         for rfq_idx, rfq in enumerate(st.session_state.rfq_history):
             for sup_idx, sup in enumerate(rfq.get("suppliers", [])):
                 for item_idx, item in enumerate(sup.get("items", [])):
@@ -942,7 +941,6 @@ elif main_menu == "📊 BOQ Supplier":
                         "อ้างอิงแหล่งข้อมูล": f"RFQ: {rfq['id']}"
                     })
                     
-        # ดึงจากระบบราคาตรง (Standalone)
         for sa_idx, item in enumerate(st.session_state.standalone_prices):
             flat_records.append({
                 "source_type": "standalone",
@@ -961,7 +959,6 @@ elif main_menu == "📊 BOQ Supplier":
         if not flat_records:
             st.info("💡 ปัจจุบันยังไม่มีข้อมูลรายการวัสดุแยกย่อยในคลังระบบ")
         else:
-            # ทำการกรองข้อมูลตาม Keyword
             if search_query:
                 q = search_query.strip().lower()
                 filtered_records = [r for r in flat_records if q in r["รายการวัสดุ"].lower() or q in r["หมวดหมู่"].lower() or q in r["ชื่อบริษัท/ผู้ขาย"].lower()]
@@ -971,13 +968,11 @@ elif main_menu == "📊 BOQ Supplier":
             st.markdown(f"พบรายการราคาวัสดุทั้งหมด **{len(filtered_records)}** รายการ")
             
             if filtered_records:
-                # แปลงเป็น DataFrame และใส่เลขข้อ (No.) นำหน้าตารางชัดๆ
                 df_history = pd.DataFrame(filtered_records)
                 df_history.insert(0, "ลำดับที่ (No.)", range(1, len(df_history) + 1))
                 
                 show_cols = ["ลำดับที่ (No.)", "หมวดหมู่", "รายการวัสดุ", "ชื่อบริษัท/ผู้ขาย", "หน่วย", "ราคาวัสดุ / หน่วย (บาท)", "ค่าแรง/หน่วย (บาท)", "ราคารวมต่อหน่วย (บาท)", "วันที่อัปเดตราคา", "อ้างอิงแหล่งข้อมูล"]
                 
-                # --- 2. ตารางแสดงผลปรับปรุงราคาพร้อมลูกน้ำ (ล็อกคอลัมน์ตัวอักษรไว้ให้พิมพ์แก้มือด้านล่างแทน) ---
                 edited_df = st.data_editor(
                     df_history[show_cols],
                     use_container_width=True,
@@ -996,21 +991,17 @@ elif main_menu == "📊 BOQ Supplier":
                 )
                 
                 st.markdown("---")
-                
-                # --- 3. ส่วนควบคุมชิ้นงานแบบเจาะจงเลือกได้แค่ 1 ข้อ (Single Selection) ---
                 st.markdown("##### ⚙️ เครื่องมือจัดการรายการพัสดุแบบเจาะจงชิ้น")
                 
                 select_options = [f"ข้อที่ {i}: {r['รายการวัสดุ']} [{r['ชื่อบริษัท/ผู้ขาย']}]" for i, r in zip(df_history["ลำดับที่ (No.)"], filtered_records)]
                 chosen_target = st.selectbox("เลือกรายการลำดับข้อที่พี่ต้องการสั่งการสำหรับแก้ไขหรือลบ:", select_options)
                 
                 if chosen_target:
-                    # ถอดหา Index ตัวจริงของแถวที่เลือกมาใช้งาน
                     chosen_no = int(chosen_target.split(":")[0].replace("ข้อที่ ", ""))
                     target_row = filtered_records[chosen_no - 1]
                     
                     act_col1, act_col2 = st.columns([1, 1])
                     
-                    # ➕ ฟีเจอร์เพิ่มเติม: เพิ่มหน้าต่างขยายปุ่มแก้ไขชื่อข้อความทั่วไป (หมวดหมู่, รายการ, หน่วย)
                     with act_col1:
                         with st.expander("📝 คลิกเพื่อเปิดหน้าต่างแก้ไขข้อมูลข้อความพัสดุ"):
                             edit_cat = st.selectbox("แก้ไขหมวดหมู่", st.session_state.categories_list, index=st.session_state.categories_list.index(target_row["หมวดหมู่"]) if target_row["หมวดหมู่"] in st.session_state.categories_list else 0)
@@ -1038,7 +1029,6 @@ elif main_menu == "📊 BOQ Supplier":
                                 st.toast("แก้ไขข้อมูลข้อความพัสดุสำเร็จแล้ว!", icon="✅")
                                 st.rerun()
                                 
-                    # 🗑️ ฟีเจอร์ลบรายการที่เลือกทีละ 1 ข้ออย่างปลอดภัย
                     with act_col2:
                         st.markdown("<div style='padding-top: 5px;'></div>", unsafe_allow_html=True)
                         if st.button(f"🗑️ สั่งลบข้อมูล {chosen_target.split(':')[0]} นี้ออกจากคลังถาวร", type="primary", use_container_width=True):
@@ -1054,7 +1044,6 @@ elif main_menu == "📊 BOQ Supplier":
                             st.toast("ลบข้อมูลประวัติราคาที่เลือกออกเรียบร้อยแล้ว!", icon="🗑️")
                             st.rerun()
 
-                # --- 4. ปุ่มกลางสำหรับตรวจสอบตัวเลขราคาที่ดับเบิ้ลคลิกแก้ไขในตาราง ---
                 mat_changed = (edited_df["ราคาวัสดุ / หน่วย (บาท)"] != df_history["ราคาวัสดุ / หน่วย (บาท)"])
                 lab_changed = (edited_df["ค่าแรง/หน่วย (บาท)"] != df_history["ค่าแรง/หน่วย (บาท)"])
                 
@@ -1086,8 +1075,44 @@ elif main_menu == "📊 BOQ Supplier":
                         st.toast("อัปเดตแก้ไขตัวเลขราคาบนตารางสำเร็จ!", icon="✅")
                         st.rerun()
 
+    # แท็บสุดท้ายที่ยังติดประเด็นอยู่ (ปิดบล็อก BOQ ดึงวงเล็บปีกกาและจัดเยื้องแถวระดับเดียวกับไอคอนหลัก)
+    with boq_tab3:
+        st.markdown("### ➕ บันทึกข้อมูลวัสดุตรงเข้าคลังราคา (ไม่อ้างอิงใบงาน RFQ)")
+        if not st.session_state.item_codes_master: st.error("⚠️ ยังไม่มีฐานข้อมูลวัสดุกลาง")
+        else:
+            form_layout_c1, form_layout_c2 = st.columns([2, 1])
+            with form_layout_c1:
+                with st.form("standalone_input_form", clear_on_submit=True):
+                    if not st.session_state.suppliers_master:
+                        st.error("⚠️ ยังไม่มีรายชื่อ Supplier ในระบบ")
+                        selected_sup_name = None
+                    else: selected_sup_name = st.selectbox("ชื่อบริษัท / ผู้ขาย", [s["name"] for s in st.session_state.suppliers_master])
+                    
+                    item_choices_boq = [f"[{i['code']}] {i['item_name']}" for i in st.session_state.item_codes_master]
+                    selected_item_boq = st.selectbox("เลือกรายการวัสดุ (Item Code Center)", item_choices_boq)
+                    target_code_boq = selected_item_boq.split("]")[0].replace("[", "")
+                    item_master_boq_obj = next(i for i in st.session_state.item_codes_master if i["code"] == target_code_boq)
+                    
+                    st.caption(f"💡 หมวดหมู่: `{item_master_boq_obj['category']}` | หน่วย: `{item_master_boq_obj['unit']}`")
+                    st_mat_rate = st.number_input("ราคาวัสดุหน่วย (บาท)", min_value=0.0, step=0.01, format="%.2f")
+                    st_lab_rate = st.number_input("ค่าแรงต่อหน่วย (บาท)", min_value=0.0, step=0.01, format="%.2f")
+                    st_date = st.date_input("วันที่ได้รับราคา", datetime.now())
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.form_submit_button("🟩 บันทึกข้อมูลเข้าคลังราคา"):
+                        if selected_sup_name:
+                            st.session_state.standalone_prices.append({
+                                "item_code": item_master_boq_obj["code"], "category": item_master_boq_obj["category"],
+                                "item_name": item_master_boq_obj["item_name"], "supplier_name": selected_sup_name,
+                                "unit": item_master_boq_obj["unit"], "material_rate": st_mat_rate, "labor_rate": st_lab_rate,
+                                "total_rate": st_mat_rate + st_lab_rate, "date_updated": st_date.strftime('%d/%m/%Y')
+                            })
+                            save_standalone_prices(st.session_state.standalone_prices)
+                            st.success(f"💾 จัดเก็บเรียบร้อย!")
+                            st.rerun()
+
 # =========================================================================
-# 🗂️ บริหาร Item Code (เวอร์ชันมาตรฐานจัดซื้อ: เก็บเฉพาะข้อมูลสารบบวัสดุกลาง ไม่เก็บราคา)
+# 🗂️ บริหาร Item Code (ล็อกระยะ Tab ให้อยู่ระดับเสมอกันเรียบร้อยแล้ว)
 # =========================================================================
 elif main_menu == "🗂️ บริหาร Item Code":
     st.title("🗂️ ศูนย์บริหารคลังฐานข้อมูลสินค้าและรหัสสินค้ากลาง (Item Code Master)")
@@ -1096,7 +1121,6 @@ elif main_menu == "🗂️ บริหาร Item Code":
     with item_tab1:
         st.markdown("### ➕ เพิ่มพัสดุและรหัสสินค้าใหม่เข้าสู่ระบบ")
         
-        # 1. ส่วนเลือกหมวดหมู่ (อยู่นอก Form เพื่อใช้สลับแล้วให้ระบบ Rerun เจนรหัสใหม่ทันที)
         cat_lay1, cat_lay2 = st.columns([5, 1])
         with cat_lay1:
             i_cat = st.selectbox(
@@ -1109,9 +1133,8 @@ elif main_menu == "🗂️ บริหาร Item Code":
             if st.button("➕ ลงทะเบียนหมวดหมู่", use_container_width=True, help="เปิดหน้าต่างลงทะเบียนเพิ่มกลุ่มงานชิ้นใหม่"):
                 add_category_dialog()
                 
-        # --- ตรรกะคำนวณรหัสสินค้าอัตโนมัติ (Prefix Character Matching) ---
         if i_cat:
-            prefix_char = i_cat[0]  # ดึงตัวอักษรตัวแรกสุด เช่น "สายไฟ" -> "ส"
+            prefix_char = i_cat[0]
             prefix = f"{prefix_char}-"
             
             max_seq = 0
@@ -1126,22 +1149,16 @@ elif main_menu == "🗂️ บริหาร Item Code":
                         pass
             
             next_itm_seq = max_seq + 1
-            auto_itm_code = f"{prefix}{next_itm_seq:04d}"  # เช่น ส-0001
+            auto_itm_code = f"{prefix}{next_itm_seq:04d}"
         else:
             auto_itm_code = "ITM-0001"
             
         st.markdown("---")
-        
-        # 2. ส่วนกรอกข้อมูลเนื้อหาพัสดุ (ถอดส่วนช่องกรอกราคาวัสดุ/ค่าแรงออกเรียบร้อยแล้ว)
         st.markdown("##### 📝 รายละเอียดรหัสสินค้าใหม่")
         
-        # ช่องแสดงรหัสสินค้า (ล็อกค่าอัปเดตอัตโนมัติ แต่ยังพิมพ์แก้ไขมือได้)
         i_code = st.text_input("รหัสสินค้า (Item Code)", value=auto_itm_code)
-        
-        # ช่องกรอกชื่อวัสดุ
         i_name = st.text_input("2. รายการวัสดุ / รายละเอียดพัสดุ (Item Description)", placeholder="เช่น CV 1C-150sq.mm (1Core) 0.6/1KV")
         
-        # แถวเลือกหน่วยนับ และ ปุ่มเพิ่มหน่วยนับกลาง
         u_lay1, u_lay2 = st.columns([5, 1])
         with u_lay1: 
             i_unit = st.selectbox("3. หน่วยนับพัสดุ (Unit)", st.session_state.units_list)
@@ -1152,17 +1169,14 @@ elif main_menu == "🗂️ บริหาร Item Code":
                 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # ปุ่มบันทึกข้อมูลหลัก
         if st.button("💾 บันทึกรหัสพัสดุนี้เข้าคลังมาสเตอร์", use_container_width=True, type="primary"):
             if i_code and i_name:
                 i_code = i_code.strip()
                 i_name = i_name.strip()
                 
-                # ตรวจสอบเพื่อป้องกันการบันทึกรหัสซ้ำ
                 if any(x["code"] == i_code for x in st.session_state.item_codes_master): 
                     st.error(f"❌ ไม่สามารถบันทึกได้ เนื่องจากรหัสสินค้า '{i_code}' มีอยู่ในระบบแล้ว")
                 else:
-                    # บันทึกเฉพาะโครงสร้างข้อมูลวัสดุหลักตามมาตรฐานจัดซื้อ
                     st.session_state.item_codes_master.append({
                         "code": i_code, 
                         "category": i_cat, 
@@ -1179,12 +1193,9 @@ elif main_menu == "🗂️ บริหาร Item Code":
         if not st.session_state.item_codes_master: 
             st.info("💡 ปัจจุบันยังไม่มีข้อมูลวัสดุในคลัง")
         else:
-            # ปรับตารางทำเนียบรหัสสินค้าให้คลีน แสดงเฉพาะข้อมูลคุณลักษณะพัสดุ ไม่ปนเรื่องราคา
             df_items_master = pd.DataFrame(st.session_state.item_codes_master)
-            
             df_display = df_items_master[["code", "category", "item_name", "unit"]]
             df_display.columns = ["รหัสสินค้า (Item Code)", "หมวดหมู่พัสดุ", "รายการวัสดุ / รายละเอียด", "หน่วยนับ (Unit)"]
-            
             st.dataframe(df_display, use_container_width=True, hide_index=True)
             
             st.markdown("---")
