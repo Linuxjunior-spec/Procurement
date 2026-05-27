@@ -983,7 +983,7 @@ elif main_menu == "📊 BOQ Supplier":
                             st.rerun()
 
 # =========================================================================
-# 🗂️ บริหาร Item Code (เวอร์ชันสมบูรณ์: รหัสอัปเดต Real-time + ปุ่มลงทะเบียนไม่หาย)
+# 🗂️ บริหาร Item Code (เวอร์ชันสมบูรณ์ที่สุด: ราคาวัสดุ + ค่าแรง กลับมาครบแล้ว)
 # =========================================================================
 elif main_menu == "🗂️ บริหาร Item Code":
     st.title("🗂️ ศูนย์บริหารคลังฐานข้อมูลสินค้าและรหัสสินค้ากลาง (Item Code Master)")
@@ -1028,7 +1028,7 @@ elif main_menu == "🗂️ บริหาร Item Code":
             
         st.markdown("---")
         
-        # 2. ส่วนกรอกข้อมูลเนื้อหาพัสดุ (ส่วนนี้เราจะเปลี่ยนมาใช้การกรอกแบบปกติ ไม่ครอบด้วย st.form เพื่อให้ปุ่ม Dialog ทำงานร่วมกันได้ 100%)
+        # 2. ส่วนกรอกข้อมูลเนื้อหาพัสดุ
         st.markdown("##### 📝 รายละเอียดรหัสสินค้าใหม่")
         
         # ช่องแสดงรหัสสินค้า (ล็อกค่าอัปเดตอัตโนมัติ แต่ยังพิมพ์แก้ไขมือได้)
@@ -1037,7 +1037,7 @@ elif main_menu == "🗂️ บริหาร Item Code":
         # ช่องกรอกชื่อวัสดุ
         i_name = st.text_input("2. รายการวัสดุ / รายละเอียดพัสดุ (Item Description)", placeholder="เช่น CV 1C-150sq.mm (1Core) 0.6/1KV")
         
-        # แถวเลือกหน่วยนับ และ ปุ่มเพิ่มหน่วยนับกลาง (กลับมาแสดงผลถูกต้อง ไม่หายแล้ว)
+        # แถวเลือกหน่วยนับ และ ปุ่มเพิ่มหน่วยนับกลาง
         u_lay1, u_lay2 = st.columns([5, 1])
         with u_lay1: 
             i_unit = st.selectbox("3. หน่วยนับพัสดุ (Unit)", st.session_state.units_list)
@@ -1046,6 +1046,14 @@ elif main_menu == "🗂️ บริหาร Item Code":
             if st.button("➕ ลงทะเบียนหน่วย", use_container_width=True, help="เปิดหน้าต่างลงทะเบียนเพิ่มหน่วยนับชิ้นใหม่"): 
                 add_unit_dialog()
                 
+        # 🟩 ส่วนที่ดึงกลับคืนมา: ช่องกรอกราคาวัสดุและค่าแรงต่อ Unit ประจำไอเทมหลัก 🟩
+        st.markdown("##### 💰 ราคาประเมินมาตรฐานต่อหน่วย (Unit Rate Estimated)")
+        p_lay1, p_lay2 = st.columns(2)
+        with p_lay1:
+            i_mat_rate = p_lay1.number_input("ราคาวัสดุต่อหน่วย (บาท)", min_value=0.0, step=1.0, format="%.2f")
+        with p_lay2:
+            i_lab_rate = p_lay2.number_input("ค่าแรงต่อหน่วย (บาท)", min_value=0.0, step=1.0, format="%.2f")
+            
         st.markdown("<br>", unsafe_allow_html=True)
         
         # ปุ่มบันทึกข้อมูลหลัก
@@ -1058,14 +1066,18 @@ elif main_menu == "🗂️ บริหาร Item Code":
                 if any(x["code"] == i_code for x in st.session_state.item_codes_master): 
                     st.error(f"❌ ไม่สามารถบันทึกได้ เนื่องจากรหัสสินค้า '{i_code}' มีอยู่ในระบบแล้ว")
                 else:
+                    # บันทึกข้อมูลลงทะเบียนรวมถึงราคาต่อ unit
                     st.session_state.item_codes_master.append({
                         "code": i_code, 
                         "category": i_cat, 
                         "item_name": i_name, 
-                        "unit": i_unit
+                        "unit": i_unit,
+                        "default_material_rate": i_mat_rate,
+                        "default_labor_rate": i_lab_rate,
+                        "default_total_rate": i_mat_rate + i_lab_rate
                     })
                     save_item_codes(st.session_state.item_codes_master)
-                    st.toast(f"✅ บันทึกรหัสสินค้า {i_code} สำเร็จ!", icon="🎉")
+                    st.toast(f"✅ บันทึกรหัสสินค้า {i_code} พร้อมราคาประเมินสำเร็จ!", icon="🎉")
                     st.rerun()
             else:
                 st.error("❌ กรุณากรอกรหัสสินค้าและรายละเอียดพัสดุให้ครบถ้วนก่อนกดบันทึก")
@@ -1074,9 +1086,27 @@ elif main_menu == "🗂️ บริหาร Item Code":
         if not st.session_state.item_codes_master: 
             st.info("💡 ปัจจุบันยังไม่มีข้อมูลวัสดุในคลัง")
         else:
+            # ปรับปรุงการแสดงตารางทำเนียบรหัสสินค้าให้โชว์ราคา Unit Rate ด้วยเพื่อความชัดเจน
             df_items_master = pd.DataFrame(st.session_state.item_codes_master)
-            df_items_master.columns = ["รหัสสินค้า (Item Code)", "หมวดหมู่พัสดุ", "รายการวัสดุ / รายละเอียด", "หน่วยนับ (Unit)"]
-            st.dataframe(df_items_master, use_container_width=True, hide_index=True)
+            
+            # เช็กโครงสร้างคอลัมน์เพื่อความปลอดภัย (รองรับข้อมูลเก่าที่ยังไม่มีค่าราคาเริ่มต้น)
+            if "default_material_rate" not in df_items_master.columns: df_items_master["default_material_rate"] = 0.0
+            if "default_labor_rate" not in df_items_master.columns: df_items_master["default_labor_rate"] = 0.0
+            if "default_total_rate" not in df_items_master.columns: df_items_master["default_total_rate"] = 0.0
+                
+            df_display = df_items_master[["code", "category", "item_name", "unit", "default_material_rate", "default_labor_rate", "default_total_rate"]]
+            df_display.columns = ["รหัสสินค้า (Item Code)", "หมวดหมู่พัสดุ", "รายการวัสดุ / รายละเอียด", "หน่วยนับ (Unit)", "ราคาวัสดุประเมิน/หน่วย", "ค่าแรงประเมิน/หน่วย", "ราคารวมประเมิน/หน่วย"]
+            
+            st.dataframe(
+                df_display, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "ราคาวัสดุประเมิน/หน่วย": st.column_config.NumberColumn(format="%.2f"),
+                    "ค่าแรงประเมิน/หน่วย": st.column_config.NumberColumn(format="%.2f"),
+                    "ราคารวมประเมิน/หน่วย": st.column_config.NumberColumn(format="%.2f")
+                }
+            )
             
             st.markdown("---")
             item_list_del = [f"[{i['code']}] {i['item_name']}" for i in st.session_state.item_codes_master]
