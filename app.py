@@ -1165,11 +1165,11 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     grand_total_boq = df_lines["total_price"].sum()
                     st.markdown(f"<h3 style='text-align: right; color:#00ffcc;'>💰 ยอดรวมมูลค่าเอกสารทั้งสิ้น: {grand_total_boq:,.2f} บาท</h3>", unsafe_allow_html=True)
                     
-                    # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกตามรูปแบบ "ใบขอสอบราคา" ---
+                    # --- ฟังก์ชันเขียนไฟล์และดาวน์โหลด PDF ขาออกตามรูปแบบ "ใบขอสอบราคา" (อัปเดตตัดเส้นและปรับฟุตเตอร์) ---
                     pdf_filename = f"Request_for_Quotation_{curr_pur_obj['id']}.pdf"
                     pdf_path = os.path.join(BASE_DIR, pdf_filename)
                     
-                    # ปรับระยะขอบหน้ากระดาษ (Margin) ให้พอดีกับบล็อกข้อความ
+                    # ปรับระยะขอบหน้ากระดาษ (Margin) ให้บาลานซ์สวยงาม
                     doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=25, bottomMargin=25)
                     story = []
                     
@@ -1194,7 +1194,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         font_to_use = 'Helvetica'
 
                     # -------------------------------------------------------------------------
-                    # ส่วนที่ 1: Header (โลโก้ SHARGE ฝั่งซ้าย + เปลี่ยนหัวข้อเป็น ใบขอสอบราคา)
+                    # ส่วนที่ 1: Header (โลโก้ SHARGE ฝั่งซ้าย + ใบขอสอบราคา)
                     # -------------------------------------------------------------------------
                     logo_path = os.path.join(BASE_DIR, 'SHARGE.png')
                     if os.path.exists(logo_path):
@@ -1215,25 +1215,23 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(top_header_table)
 
                     # -------------------------------------------------------------------------
-                    # ส่วนที่ 2: บล็อกข้อมูลปรับปรุงใหม่ (บริษัทที่เสนอ VS ช่องขวาว่างไว้พร้อมข้อมูล RFQ)
+                    # ส่วนที่ 2: บล็อกข้อมูล (บริษัทที่เสนอ VS ช่องขวาว่างไว้พร้อมข้อมูล RFQ)
                     # -------------------------------------------------------------------------
                     requestor_name = curr_pur_obj.get('requestor', '-')
                     client_company = curr_pur_obj.get('client_name', '-')
                     project_title = curr_pur_obj.get('project_name', '-')
                     doc_date = curr_pur_obj.get('date', '-')
 
-                    # ปรับข้อความฝั่งซ้ายตามโครงสร้างใหม่
                     left_block_text = f"""<b>บริษัทที่เสนอ :</b> {client_company}<br/>
                     <b>โครงการ :</b> {project_title}<br/>
                     <b>ผู้ร้องขอโครงการ :</b> {requestor_name}"""
                     
-                    # ปรับข้อความฝั่งขวาตามโครงสร้างใหม่
                     right_block_text = f"""<b>วันที่ request :</b> {doc_date}<br/>
                     <b>เลขที่ ร้องขอ :</b> {curr_pur_obj['id']}<br/>
                     <b>RFQ Ref :</b> -"""
 
                     address_block_data = [
-                        [Paragraph("<b>บริษัทที่เสนอ</b>", text_bold), "", Paragraph("", text_bold), ""], # ช่องขวาว่างไว้ไม่ต้องมีหัวข้อ
+                        [Paragraph("<b>บริษัทที่เสนอ</b>", text_bold), "", Paragraph("", text_bold), ""], 
                         [Paragraph(left_block_text, text_style), "", Paragraph(right_block_text, text_style), ""]
                     ]
                     
@@ -1243,7 +1241,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         ('SPAN', (2,0), (3,0)), 
                         ('SPAN', (0,1), (1,1)), 
                         ('SPAN', (2,1), (3,1)), 
-                        ('BACKGROUND', (0,0), (0,0), colors.HexColor("#EAEAEA")), # ไฮไลท์เฉพาะหัวข้อฝั่งซ้าย
+                        ('BACKGROUND', (0,0), (0,0), colors.HexColor("#EAEAEA")), 
                         ('BOX', (0,0), (1,1), 1, colors.HexColor("#CCCCCC")),    
                         ('BOX', (2,0), (3,1), 1, colors.HexColor("#CCCCCC")),    
                         ('VALIGN', (0,0), (-1,-1), 'TOP'),
@@ -1256,7 +1254,7 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(Spacer(1, 15))
 
                     # -------------------------------------------------------------------------
-                    # ส่วนที่ 3: ตารางรายการพัสดุและคำนวณราคา
+                    # ส่วนที่ 3: ตารางรายการพัสดุสินค้า
                     # -------------------------------------------------------------------------
                     table_data = [[
                         Paragraph("<b>ลำดับ</b>", header_style),
@@ -1306,16 +1304,15 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         current_row_idx += 1
 
                     # -------------------------------------------------------------------------
-                    # ส่วนที่ 4: ตารางคำนวณและสรุปเงินท้ายตาราง (ปรับปรุงตามเงื่อนไขใหม่)
+                    # ส่วนที่ 4: ตารางกลุ่มสรุปเงินท้ายเล่ม (ลบมูลค่าก่อนภาษี และลบเส้นกากบาทออกตามสั่ง)
                     # -------------------------------------------------------------------------
                     grand_total_boq = sum(float(it.get("total_price", 0.0)) for it in items_list)
                     subtotal_before_vat = grand_total_boq / 1.07
                     vat_value = grand_total_boq - subtotal_before_vat
                     
-                    # ตัดแถว "ยอดรวมสุทธิ" และ "ค่าจัดส่ง" ออกไปตามสั่ง เหลือเพียง 4 แถวหลักนี้ครับ
+                    # คงเหลือเพียง 2 แถวก่อนถึงสรุปยอดรวมสุทธิ (ตัดยอดก่อนภาษีออก)
                     financial_rows = [
                         ["", "", "", "", Paragraph("รวมราคาสินค้า(บาท)", text_style), Paragraph(f"{grand_total_boq:,.2f}", text_style)],
-                        ["", "", "", "", Paragraph("มูลค่าก่อนภาษี", text_style), Paragraph(f"{subtotal_before_vat:,.2f}", text_style)],
                         ["", "", "", "", Paragraph("มูลค่าภาษี (7%)", text_style), Paragraph(f"{vat_value:,.2f}", text_style)]
                     ]
                     
@@ -1327,13 +1324,14 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                         table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 4))
                         table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 4))
                         
-                        # [FIXED] สั่งเอาเส้นตารางด้านในฝั่งซ้าย (พื้นที่วงกลมสีเหลือง) ออกทั้งหมด ไม่ให้เห็นเป็นเส้นแบ่งแถวเปล่า
+                        # [FIXED] สั่งปลดเส้นขอบแนวดิ่งนอกสุดฝั่งซ้ายออก (ลบเส้นกากบาทสีเหลืองตัวซ้าย)
+                        table_styles_list.append(('LINEBEFORE', (0, current_row_idx), (0, current_row_idx), 0, colors.white))
+                        # ซ่อนเส้นแบ่งแถวด้านในพื้นที่ว่าง
                         table_styles_list.append(('LINEBELOW', (0, current_row_idx), (3, current_row_idx), 0, colors.white))
-                        table_styles_list.append(('LINEBEFORE', (0, current_row_idx), (4, current_row_idx), 0, colors.white))
                         table_styles_list.append(('LINEAFTER', (0, current_row_idx), (3, current_row_idx), 0, colors.white))
                         current_row_idx += 1
                         
-                    # แถวสุดท้าย: มูลค่ารวมทั้งสิ้น
+                    # เพิ่มแถวปิดท้าย: มูลค่ารวมทั้งสิ้น
                     table_data.append(["", "", "", "", Paragraph("<b>มูลค่ารวมทั้งสิ้น</b>", text_bold), Paragraph(f"<b>{grand_total_boq:,.2f}</b>", text_bold)])
                     table_styles_list.append(('SPAN', (0, current_row_idx), (3, current_row_idx)))
                     table_styles_list.append(('BACKGROUND', (4, current_row_idx), (5, current_row_idx), colors.HexColor("#EAEAEA"))) 
@@ -1342,34 +1340,36 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     table_styles_list.append(('TOPPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
                     table_styles_list.append(('BOTTOMPADDING', (0, current_row_idx), (-1, current_row_idx), 6))
                     
-                    # ลบเส้นสำหรับแถวสุดท้ายในฝั่งซ้ายเช่นกัน เพื่อไม่ให้มีเส้นขวางตัดผ่านช่องว่าง
-                    table_styles_list.append(('LINEBEFORE', (0, current_row_idx), (3, current_row_idx), 0, colors.white))
+                    # [FIXED] สั่งซ่อนเส้นรอบด้านนอกและเส้นใต้กล่องแถวสุดท้ายฝั่งซ้าย (ลบเส้นกากบาทสีเหลืองตัวล่างสุด)
+                    table_styles_list.append(('LINEBEFORE', (0, current_row_idx), (0, current_row_idx), 0, colors.white))
+                    table_styles_list.append(('LINEBELOW', (0, current_row_idx), (3, current_row_idx), 0, colors.white))
                     current_row_idx += 1
                     
-                    # ความกว้างคอลัมน์ (รวม 535)
+                    # สร้างตารางข้อมูลหลักลงกระดาษ
                     pdf_table = Table(table_data, colWidths=[30, 70, 220, 45, 85, 85])
                     pdf_table.setStyle(TableStyle(table_styles_list))
                     story.append(pdf_table)
-                    story.append(Spacer(1, 30))
+                    story.append(Spacer(1, 35))
 
                     # -------------------------------------------------------------------------
-                    # ส่วนที่ 5: ช่องลงนามลายเซ็นท้ายเอกสาร
+                    # ส่วนที่ 5: ช่องลงนามลายเซ็นท้ายเอกสาร (อัปเดตตำแหน่งจัดซื้อตามเงื่อนไขใหม่)
                     # -------------------------------------------------------------------------
                     signature_data = [
                         ["(......................................................)", "", "(......................................................)"],
                         [Paragraph("<b>(ผู้อนุมัติ)</b>", footer_style), "", Paragraph("<b>(ผู้เสนอราคา)</b>", footer_style)],
-                        ["", "", Paragraph("<b>ชาร์จ แมเนจเม้นท์ / SHARGE</b>", footer_style)]
+                        ["", "", Paragraph("<b>SHARGE</b>", footer_style)],
+                        ["", "", Paragraph("<b>(Procurement Department)</b>", footer_style)] # แปลงส่วนแผนกจัดซื้อเป็นภาษาอังกฤษเรียบร้อย
                     ]
                     signature_table = Table(signature_data, colWidths=[230, 75, 230])
                     signature_table.setStyle(TableStyle([
                         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
                         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                        ('TOPPADDING', (0,0), (-1,-1), 2),
-                        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+                        ('TOPPADDING', (0,0), (-1,-1), 1),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 1),
                     ]))
                     story.append(signature_table)
 
-                    # สั่งคอมไพล์สร้างไฟล์ PDF
+                    # สั่งเซฟคอมไพล์เอกสารออกมาใช้งาน
                     doc.build(story)
                     
                     # ปุ่มดาวน์โหลดเอกสาร PDF ขาออกไปใช้งานพริ้นต์จริง
