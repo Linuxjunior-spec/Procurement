@@ -983,7 +983,7 @@ elif main_menu == "📊 BOQ Supplier":
                             st.rerun()
 
 # =========================================================================
-# 🗂️ บริหาร Item Code (เวอร์ชันปรับปรุงรหัสอัปเดตตามตัวอักษรหมวดหมู่อัตโนมัติ)
+# 🗂️ บริหาร Item Code (เวอร์ชันสมบูรณ์: รหัสอัปเดต Real-time + ปุ่มลงทะเบียนไม่หาย)
 # =========================================================================
 elif main_menu == "🗂️ บริหาร Item Code":
     st.title("🗂️ ศูนย์บริหารคลังฐานข้อมูลสินค้าและรหัสสินค้ากลาง (Item Code Master)")
@@ -992,7 +992,7 @@ elif main_menu == "🗂️ บริหาร Item Code":
     with item_tab1:
         st.markdown("### ➕ เพิ่มพัสดุและรหัสสินค้าใหม่เข้าสู่ระบบ")
         
-        # วาง Layout หมวดหมู่ไว้นอก Form เพื่อให้เกิดการ Rerun ค่ารหัสใหม่ทันทีเวลาสลับเลือกหมวดหมู่
+        # 1. ส่วนเลือกหมวดหมู่ (อยู่นอก Form เพื่อใช้สลับแล้วให้ระบบ Rerun เจนรหัสใหม่ทันที)
         cat_lay1, cat_lay2 = st.columns([5, 1])
         with cat_lay1:
             i_cat = st.selectbox(
@@ -1022,48 +1022,53 @@ elif main_menu == "🗂️ บริหาร Item Code":
                         pass
             
             next_itm_seq = max_seq + 1
-            auto_itm_code = f"{prefix}{next_itm_seq:04d}"  # ผลลัพธ์จะได้ เช่น ส-0001
+            auto_itm_code = f"{prefix}{next_itm_seq:04d}"  # เช่น ส-0001
         else:
             auto_itm_code = "ITM-0001"
             
-        # เปิดหน้าฟอร์มกรอกรายละเอียดพัสดุส่วนที่เหลือ
-        with st.form("item_code_main_form", clear_on_submit=True):
-            st.markdown("##### 📝 รายละเอียดรหัสสินค้าใหม่")
-            
-            # แสดงรหัสที่คำนวณได้ (ผู้ใช้สามารถพิมพ์แก้ไขเองแมนนวลได้หากจำเป็น)
-            i_code = st.text_input("รหัสสินค้า (Item Code)", value=auto_itm_code)
-            
-            i_name = st.text_input("รายการวัสดุ / รายละเอียดพัสดุ (Item Description)", placeholder="เช่น CV 1C-150sq.mm (1Core) 0.6/1KV")
-            
-            u_lay1, u_lay2 = st.columns([5, 1])
-            with u_lay1: 
-                i_unit = st.selectbox("หน่วยนับพัสดุ (Unit)", st.session_state.units_list)
-            with u_lay2:
-                st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
-                # หมายเหตุ: ปุ่มในฟอร์มย่อยนี้ใช้เปิด Dialog สำหรับบันทึกหน่วยนับกลางได้ปกติ
+        st.markdown("---")
+        
+        # 2. ส่วนกรอกข้อมูลเนื้อหาพัสดุ (ส่วนนี้เราจะเปลี่ยนมาใช้การกรอกแบบปกติ ไม่ครอบด้วย st.form เพื่อให้ปุ่ม Dialog ทำงานร่วมกันได้ 100%)
+        st.markdown("##### 📝 รายละเอียดรหัสสินค้าใหม่")
+        
+        # ช่องแสดงรหัสสินค้า (ล็อกค่าอัปเดตอัตโนมัติ แต่ยังพิมพ์แก้ไขมือได้)
+        i_code = st.text_input("รหัสสินค้า (Item Code)", value=auto_itm_code)
+        
+        # ช่องกรอกชื่อวัสดุ
+        i_name = st.text_input("2. รายการวัสดุ / รายละเอียดพัสดุ (Item Description)", placeholder="เช่น CV 1C-150sq.mm (1Core) 0.6/1KV")
+        
+        # แถวเลือกหน่วยนับ และ ปุ่มเพิ่มหน่วยนับกลาง (กลับมาแสดงผลถูกต้อง ไม่หายแล้ว)
+        u_lay1, u_lay2 = st.columns([5, 1])
+        with u_lay1: 
+            i_unit = st.selectbox("3. หน่วยนับพัสดุ (Unit)", st.session_state.units_list)
+        with u_lay2:
+            st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("➕ ลงทะเบียนหน่วย", use_container_width=True, help="เปิดหน้าต่างลงทะเบียนเพิ่มหน่วยนับชิ้นใหม่"): 
+                add_unit_dialog()
                 
-            st.markdown("<br>", unsafe_allow_html=True)
-            submit_item = st.form_submit_button("💾 บันทึกรหัสพัสดุนี้เข้าคลังมาสเตอร์", use_container_width=True)
-            
-            if submit_item:
-                if i_code and i_name:
-                    i_code = i_code.strip()
-                    i_name = i_name.strip()
-                    # ตรวจสอบเพื่อป้องกันการบันทึกรหัสซ้ำในคลังข้อมูล
-                    if any(x["code"] == i_code for x in st.session_state.item_codes_master): 
-                        st.error(f"❌ ไม่สามารถบันทึกได้ เนื่องจากรหัสสินค้า '{i_code}' มีอยู่ในระบบแล้ว")
-                    else:
-                        st.session_state.item_codes_master.append({
-                            "code": i_code, 
-                            "category": i_cat, 
-                            "item_name": i_name, 
-                            "unit": i_unit
-                        })
-                        save_item_codes(st.session_state.item_codes_master)
-                        st.toast(f"✅ บันทึกรหัสสินค้า {i_code} สำเร็จ!", icon="🎉")
-                        st.rerun()
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ปุ่มบันทึกข้อมูลหลัก
+        if st.button("💾 บันทึกรหัสพัสดุนี้เข้าคลังมาสเตอร์", use_container_width=True, type="primary"):
+            if i_code and i_name:
+                i_code = i_code.strip()
+                i_name = i_name.strip()
+                
+                # ตรวจสอบเพื่อป้องกันการบันทึกรหัสซ้ำ
+                if any(x["code"] == i_code for x in st.session_state.item_codes_master): 
+                    st.error(f"❌ ไม่สามารถบันทึกได้ เนื่องจากรหัสสินค้า '{i_code}' มีอยู่ในระบบแล้ว")
                 else:
-                    st.error("❌ กรุณากรอกรหัสสินค้าและรายละเอียดพัสดุให้ครบถ้วนก่อนกดบันทึก")
+                    st.session_state.item_codes_master.append({
+                        "code": i_code, 
+                        "category": i_cat, 
+                        "item_name": i_name, 
+                        "unit": i_unit
+                    })
+                    save_item_codes(st.session_state.item_codes_master)
+                    st.toast(f"✅ บันทึกรหัสสินค้า {i_code} สำเร็จ!", icon="🎉")
+                    st.rerun()
+            else:
+                st.error("❌ กรุณากรอกรหัสสินค้าและรายละเอียดพัสดุให้ครบถ้วนก่อนกดบันทึก")
 
     with item_tab2:
         if not st.session_state.item_codes_master: 
