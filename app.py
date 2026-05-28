@@ -570,7 +570,7 @@ elif main_menu == "🏢 ข้อมูล Supplier":
         col_pop1, col_pop2 = st.columns([2, 3])
         with col_pop1:
             if st.button("🏢 คลิกเพื่อเลือกซัพพลายเออร์ (POPUP ค้นหา)", use_container_width=True, icon="🔍"):
-                select_supplier_popup()
+                select_supplier_popup() # [FIXED] เขียนชื่อฟังก์ชันให้ตรงกับคำประกาศด้านบน[cite: 3]
                 
         if not st.session_state.selected_supplier_name:
             st.info("💡 กรุณากดปุ่มด้านบนเพื่อเลือกซัพพลายเออร์ที่ต้องการเปิดดูข้อมูลโปรไฟล์ครับ")
