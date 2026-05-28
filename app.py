@@ -42,7 +42,7 @@ if not os.path.exists(SUP_DOC_DIR):
     os.makedirs(SUP_DOC_DIR)
 
 # 🎯 [UPDATED] ฟังก์ชันเชื่อมต่อ Google Drive แก้รหัส Folder ID ให้ถูกต้อง (ไอตัวใหญ่)
-def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
+def upload_to_google_drive(local_file_path, folder_id="https://drive.google.com/drive/folders/1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         if not os.path.exists(local_file_path):
             return False
@@ -81,7 +81,7 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         return False
 
 # 🎯 [NEW FUNCTION] ฟังก์ชันดาวน์โหลดไฟล์ข้อมูลล่าสุดจาก Google Drive ลงมาที่คลาวด์ตอนเริ่มต้นแอป
-def download_from_google_drive(file_name, local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
+def download_from_google_drive(file_name, local_file_path, folder_id="https://drive.google.com/drive/folders/1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         gauth = GoogleAuth()
         gauth.settings['client_config_backend'] = 'settings'
