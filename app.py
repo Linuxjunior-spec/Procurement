@@ -24,12 +24,16 @@ from pydrive2.drive import GoogleDrive
 # ตั้งค่าหน้าจอโปรแกรม
 st.set_page_config(page_title="Procurement Workspace", layout="wide")
 
-# เปลี่ยนตำแหน่งที่เก็บให้ไปอยู่ที่ Drive D หรือโฟลเดอร์ที่ปลอดภัยในเครื่อง
-BASE_DIR = "D:/ProcurementData"
+# 🎯 [FIXED] เช็คสภาพแวดล้อมอัจฉริยะ (ถ้าอยู่บน Windows คอมพี่จะเซฟเข้า Drive D อัตโนมัติ ถ้ารันบนคลาวด์จะดึงจากโฟลเดอร์โปรเจกต์ปัจจุบันเพื่อไม่ให้ฟอนต์หรือโลโก้ SHARGE พัง)
+if platform.system() == "Windows":
+    BASE_DIR = "D:/ProcurementData"
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 if not os.path.exists(BASE_DIR):
     os.makedirs(BASE_DIR)
 
-# กำหนดที่เก็บไฟล์ฐานข้อมูลและโฟลเดอร์เอกสารให้อยู่ด้านใน Procurement-App ทั้งหมด
+# กำหนดที่เก็บไฟล์ฐานข้อมูลและโฟลเดอร์เอกสาร
 DB_FILE = os.path.join(BASE_DIR, "rfq_data.json")
 USER_FILE = os.path.join(BASE_DIR, "requestors_data.json")
 SUP_FILE = os.path.join(BASE_DIR, "suppliers_master.json")
@@ -43,15 +47,27 @@ PUR_FILE = os.path.join(BASE_DIR, "pur_proposals.json")
 if not os.path.exists(SUP_DOC_DIR):
     os.makedirs(SUP_DOC_DIR)
 
-# 🎯 [FIXED] อัปเดตเสถียรภาพฟังก์ชันอัปโหลด Google Drive เรียบร้อย ไร้รอยต่อ
+# ฟังก์ชันเชื่อมต่อ Google Drive อัตโนมัติด้วย Service Account คีย์ของพี่
 def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         if not os.path.exists(local_file_path):
             return False
         gauth = GoogleAuth()
         gauth.settings['client_config_backend'] = 'settings'
+        
+        # ตรวจสอบพิกัดไฟล์คีย์ตามสภาพแวดล้อมของเซิร์ฟเวอร์
+        key_filename = 'procurement-497602-82656c1d03df.json'
+        if platform.system() == "Windows":
+            key_path = os.path.join("D:/ProcurementData", key_filename)
+        else:
+            key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), key_filename)
+            
+        if not os.path.exists(key_path):
+            print(f"⚠️ ไม่พบไฟล์คีย์ Service Account ในตำแหน่ง: {key_path}")
+            return False
+            
         gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json'), 
+            key_path, 
             ['https://www.googleapis.com/auth/drive']
         )
         drive = GoogleDrive(gauth)

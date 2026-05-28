@@ -1,5 +1,5 @@
-streamlit
+pydrive2
+oauth2client
+reportlab
 pandas
 plotly
-openpyxl
-reportlab
