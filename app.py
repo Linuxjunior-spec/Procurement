@@ -167,8 +167,8 @@ def select_areas_dialog():
     if st.button("💾 ยืนยันการเลือกพื้นที่", use_container_width=True): 
         st.session_state.areas_output_add = "ทุกจังหวัดทั่วประเทศ" if "ทุกจังหวัดทั่วประเทศ" in chosen_list else ", ".join(chosen_list) 
         st.rerun()
-        @st.dialog("🔍 ค้นหาและเลือกซัพพลายเออร์")
         
+@st.dialog("🔍 ค้นหาและเลือกซัพพลายเออร์")
 def select_supplier_popup():
     if not st.session_state.suppliers_master:
         st.warning("⚠️ ปัจจุบันยังไม่มีข้อมูลซัพพลายเออร์ในระบบคลัง")
