@@ -84,7 +84,10 @@ def save_standalone_prices(data): save_json_file(STANDALONE_FILE, data)
 def save_item_codes(data): save_json_file(ITEM_FILE, data)
 def save_units(data): save_json_file(UNIT_FILE, data)
 def save_categories(data): save_json_file(CATEGORIES_FILE, data)
-def save_pur_proposals(data): save_json_file(PUR_FILE, data)
+def save_pur_proposals(data):
+    save_json_file(PUR_FILE, data)
+    # ➕ เพิ่มบรรทัดนี้: บันทึกเสร็จแล้วส่งอัปเดตไฟล์ขึ้น Google Drive อัตโนมัติทันที
+    upload_to_google_drive(PUR_FILE)
 
 # โหลดข้อมูลเข้าสู่ตัวแปรระบบ Session State
 if 'rfq_history' not in st.session_state: st.session_state.rfq_history = load_json_file(DB_FILE, [])
@@ -1438,7 +1441,9 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(signature_table)
 
                     # สั่งเซฟคอมไพล์สรุปยอดแผ่น PDF ทั้งหมด
-                    doc.build(story)
+                    doc.build(story) # เจนไฟล์ PDF ในเครื่องจำลองเสร็จแล้ว
+                    # ➕ เพิ่มบรรทัดนี้: ส่งไฟล์ PDF ข้ามไปเก็บใน Google Drive ทันที
+                    upload_to_google_drive(pdf_path)
                     # ปุ่มดาวน์โหลดเอกสาร PDF ขาออกไปใช้งานพริ้นต์จริง
                     with open(pdf_path, "rb") as pdf_file:
                         st.download_button(
@@ -1497,3 +1502,31 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     st.rerun()
                 else:
                     st.error("❌ กรุณากรอกรหัสเอกสาร ชื่อโครงการ ชื่อบริษัทผู้ว่าจ้าง และผู้ร้องขอให้ครบถ้วนก่อนส่ง")
+
+from pydrive2.auth import GoogleAuth
+from pydrive2.drive import GoogleDrive
+
+# 🎯 ฟังก์ชันเชื่อมต่อ Google Drive อัตโนมัติด้วย Service Account
+def upload_to_google_drive(local_file_path, folder_id=1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU):
+    try:
+        gauth = GoogleAuth()
+        # กำหนดการเชื่อมต่อผ่านไฟล์ JSON
+        gauth.settings['client_config_backend'] = 'settings'
+        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
+            os.path.join(BASE_DIR, 'credentials.json'), 
+            ['https://www.googleapis.com/auth/drive']
+        )
+        drive = GoogleDrive(gauth)
+        
+        # สร้างไฟล์บน Drive
+        file_name = os.path.basename(local_file_path)
+        drive_file = drive.CreateFile({
+            'title': file_name,
+            'parents': [{'id': folder_id}] # ระบุไอดีโฟลเดอร์ปลายทาง
+        })
+        drive_file.SetContentFile(local_file_path)
+        drive_file.Upload() # อัปโหลดทันที
+        return True
+    except Exception as e:
+        print(f"Drive Upload Error: {e}")
+        return False
