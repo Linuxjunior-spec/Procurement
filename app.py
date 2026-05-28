@@ -201,6 +201,7 @@ def edit_contacts_popup(sup_obj, idx_master):
 
 @st.dialog("➕ ลงทะเบียนหน่วยนับมาตรฐานใหม่") [cite: 760]
 def add_unit_dialog():
+    
     new_unit = st.text_input("ชื่อหน่วยนับ (Unit Name)").strip() [cite: 760]
     if st.button("💾 บันทึกหน่วยนับใหม่", use_container_width=True): [cite: 760]
         if new_unit and new_unit not in st.session_state.units_list: [cite: 760]
