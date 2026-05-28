@@ -41,8 +41,8 @@ PUR_FILE = os.path.join(BASE_DIR, "pur_proposals.json")
 if not os.path.exists(SUP_DOC_DIR):
     os.makedirs(SUP_DOC_DIR)
 
-# 🎯 [UPDATED] ฟังก์ชันเชื่อมต่อ Google Drive และบังคับตรวจสอบไฟล์ซ้ำแบบ Auto Real-time
-def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
+# 🎯 [UPDATED] ฟังก์ชันเชื่อมต่อ Google Drive แก้รหัส Folder ID ให้ถูกต้อง (ไอตัวใหญ่)
+def upload_to_google_drive(local_file_path, folder_id="1hcqai0IVGsGNdGnH9BBKHgjVnNSIKUbU"):
     try:
         if not os.path.exists(local_file_path):
             return False
@@ -63,7 +63,7 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         
         file_name = os.path.basename(local_file_path)
         
-        # ค้นหาเพื่อลบไฟล์เวอร์ชันเก่าใน Drive ออกก่อน ไม่ให้ไฟล์บันทึกจัดซื้อทับซ้อนกันมั่วซั่ว
+        # ค้นหาเพื่อลบไฟล์เวอร์ชันเก่าใน Drive ออกก่อน
         file_list = drive.ListFile({'q': f"'{folder_id}' in parents and title = '{file_name}' and trashed = false"}).GetList()
         for old_file in file_list:
             old_file.Delete()
@@ -78,6 +78,34 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         return True
     except Exception as e:
         print(f"Drive Upload Error: {e}")
+        return False
+
+# 🎯 [NEW FUNCTION] ฟังก์ชันดาวน์โหลดไฟล์ข้อมูลล่าสุดจาก Google Drive ลงมาที่คลาวด์ตอนเริ่มต้นแอป
+def download_from_google_drive(file_name, local_file_path, folder_id="1hcqai0IVGsGNdGnH9BBKHgjVnNSIKUbU"):
+    try:
+        gauth = GoogleAuth()
+        gauth.settings['client_config_backend'] = 'settings'
+        key_path = os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json')
+        
+        if not os.path.exists(key_path):
+            return False
+            
+        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
+            key_path, 
+            ['https://www.googleapis.com/auth/drive']
+        )
+        drive = GoogleDrive(gauth)
+        
+        # ค้นหาไฟล์บน Google Drive ปลายทาง
+        file_list = drive.ListFile({'q': f"'{folder_id}' in parents and title = '{file_name}' and trashed = false"}).GetList()
+        if file_list:
+            # ดึงไฟล์ตัวล่าสุดบน Drive ลงมาเขียนทับไฟล์ชั่วคราวบนคลาวด์
+            file_list[0].GetContentFile(local_file_path)
+            print(f"📥 ดึงประวัติล่าสุดจาก Google Drive สำเร็จ: {file_name}")
+            return True
+        return False
+    except Exception as e:
+        print(f"Drive Download Error: {e}")
         return False
 
 # คลังข้อมูลพิกัดจังหวัดและภูมิภาคของประเทศไทย
@@ -1532,60 +1560,3 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     st.rerun()
                 else:
                     st.error("❌ กรุณากรอกรหัสเอกสาร ชื่อโครงการ ชื่อบริษัทผู้ว่าจ้าง และผู้ร้องขอให้ครบถ้วนก่อนกดเปิดเล่ม")
-                    # 🎯 [NEW FUNCTION] ฟังก์ชันดาวน์โหลดไฟล์ข้อมูลล่าสุดจาก Google Drive ลงมาที่คลาวด์ตอนเริ่มต้นแอป
-def download_from_google_drive(file_name, local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
-    try:
-        gauth = GoogleAuth()
-        gauth.settings['client_config_backend'] = 'settings'
-        key_path = os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json')
-        
-        if not os.path.exists(key_path):
-            return False
-            
-        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            key_path, 
-            ['https://www.googleapis.com/auth/drive']
-        )
-        drive = GoogleDrive(gauth)
-        
-        # ค้นหาไฟล์บน Google Drive ปลายทาง
-        file_list = drive.ListFile({'q': f"'{folder_id}' in parents and title = '{file_name}' and trashed = false"}).GetList()
-        if file_list:
-            # ดึงไฟล์ตัวล่าสุดบน Drive ลงมาเขียนทับไฟล์ชั่วคราวบนคลาวด์ เพื่อกู้ประวัติงานเดิมกลับมา
-            file_list[0].GetContentFile(local_file_path)
-            print(f"📥 ดึงประวัติล่าสุดจาก Google Drive สำเร็จ: {file_name}")
-            return True
-        return False
-    except Exception as e:
-        print(f"Drive Download Error: {e}")
-        return False
-
-# 🎯 [NEW LOGIC] ปรับปรุงกลไกโหลดข้อมูลเข้าสู่ระบบ (โหลดตรงจาก Google Drive ก่อนเสมอ ป้องกันประวัติหายหลัง Reboot)
-# สั่งให้ระบบดาวน์โหลดคลังข้อมูลจัดซื้อจาก Drive ทุกครั้งที่เปิดแอปใหม่
-download_from_google_drive("rfq_data.json", DB_FILE)
-download_from_google_drive("requestors_data.json", USER_FILE)
-download_from_google_drive("suppliers_master.json", SUP_FILE)
-download_from_google_drive("standalone_prices.json", STANDALONE_FILE)
-download_from_google_drive("item_codes_master.json", ITEM_FILE)
-download_from_google_drive("units_master.json", UNIT_FILE)
-download_from_google_drive("categories_master.json", CATEGORIES_FILE)
-download_from_google_drive("pur_proposals.json", PUR_FILE)
-
-# โหลดข้อมูลเข้าสู่ตัวแปรระบบ Session State 
-if 'rfq_history' not in st.session_state: st.session_state.rfq_history = load_json_file(DB_FILE, []) 
-if 'requestors_list' not in st.session_state: st.session_state.requestors_list = load_json_file(USER_FILE, ["คุณสมชาย", "คุณสมหญิง"]) 
-if 'suppliers_master' not in st.session_state: st.session_state.suppliers_master = load_json_file(SUP_FILE, []) 
-if 'standalone_prices' not in st.session_state: st.session_state.standalone_prices = load_json_file(STANDALONE_FILE, []) 
-if 'item_codes_master' not in st.session_state: st.session_state.item_codes_master = load_json_file(ITEM_FILE, []) 
-if 'units_list' not in st.session_state: st.session_state.units_list = load_json_file(UNIT_FILE, ["M", "ชุด", "ตัว", "ตร.ม.", "กิโลกรัม", "ท่อน", "ม้วน"]) 
-if 'categories_list' not in st.session_state: st.session_state.categories_list = load_json_file(CATEGORIES_FILE, ["สายไฟ", "ท่อร้อยสาย", "อุปกรณ์ไฟฟ้า", "งานระบบ", "ทั่วไป"]) 
-if 'pur_proposals' not in st.session_state: st.session_state.pur_proposals = load_json_file(PUR_FILE, []) 
-
-# 🎯 [NEW LOGIC] ตัวบล็อกอัจฉริยะ ป้องกันแอปส่ง "ค่าว่างเปล่า" ไปเขียนทับไฟล์จริงบน Drive
-def save_pur_proposals(data):
-    # ดักจับเงื่อนไข: ถ้าระบบคลาวด์พยายามส่งข้อมูลว่างเปล่ามาทับ ทั้งๆ ที่บน Drive เคยมีประวัติ ให้ตัดคำสั่งทิ้งทันที
-    if not data and download_from_google_drive("pur_proposals.json", PUR_FILE):
-        data = load_json_file(PUR_FILE, [])
-        st.session_state.pur_proposals = data
-    save_json_file(PUR_FILE, data)
-    upload_to_google_drive(PUR_FILE)
