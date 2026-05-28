@@ -24,10 +24,10 @@ from pydrive2.drive import GoogleDrive
 # ตั้งค่าหน้าจอโปรแกรม
 st.set_page_config(page_title="Procurement Workspace", layout="wide")
 
-# 🎯 [UPDATED] ล็อกตำแหน่งโฟลเดอร์สำหรับทำงานบนระบบคลาวด์ให้เสถียรและค้นหาฟอนต์/คีย์เจอแน่นอน
+# 🎯 [UPDATED] การตั้งค่า Path ป้องกันไฟล์ประวัติขัดแย้งและล็อกที่อยู่ให้ค้นหาไฟล์คีย์เจอแน่นอน
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# กำหนดที่เก็บไฟล์ฐานข้อมูลและโฟลเดอร์เอกสาร
+# กำหนดที่เก็บไฟล์ฐานข้อมูลหลักให้อยู่ที่เดียวกับตัวรันโปรแกรมเสมอ เพื่อดึงประวัติงานเดิมของพี่มาใช้
 DB_FILE = os.path.join(BASE_DIR, "rfq_data.json")
 USER_FILE = os.path.join(BASE_DIR, "requestors_data.json")
 SUP_FILE = os.path.join(BASE_DIR, "suppliers_master.json")
@@ -41,22 +41,18 @@ PUR_FILE = os.path.join(BASE_DIR, "pur_proposals.json")
 if not os.path.exists(SUP_DOC_DIR):
     os.makedirs(SUP_DOC_DIR)
 
-# ฟังก์ชันเชื่อมต่อ Google Drive อัตโนมัติด้วย Service Account คีย์ของพี่
+# 🎯 [UPDATED] ฟังก์ชันเชื่อมต่อ Google Drive และบังคับตรวจสอบไฟล์ซ้ำแบบ Auto Real-time
 def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         if not os.path.exists(local_file_path):
-            print(f"⚠️ ไม่พบไฟล์โลคอลในระบบ: {local_file_path}")
             return False
             
         gauth = GoogleAuth()
         gauth.settings['client_config_backend'] = 'settings'
-        
-        # 🎯 ปรับให้ค้นหาจากโฟลเดอร์หลักปัจจุบันของแอปพลิเคชันโดยตรงบนคลาวด์
-        key_filename = 'procurement-497602-82656c1d03df.json'
-        key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), key_filename)
+        key_path = os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json')
             
         if not os.path.exists(key_path):
-            print(f"⚠️ ไม่พบไฟล์คีย์ Service Account ในตำแหน่ง: {key_path}")
+            print(f"⚠️ ไม่พบไฟล์คีย์ Service Account: {key_path}")
             return False
             
         gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
@@ -67,7 +63,7 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         
         file_name = os.path.basename(local_file_path)
         
-        # ตรวจสอบและลบไฟล์ชื่อซ้ำเดิมออก เพื่อป้องกันไฟล์ขยะทับถมซ้ำซ้อนใน Drive
+        # ค้นหาเพื่อลบไฟล์เวอร์ชันเก่าใน Drive ออกก่อน ไม่ให้ไฟล์บันทึกจัดซื้อทับซ้อนกันมั่วซั่ว
         file_list = drive.ListFile({'q': f"'{folder_id}' in parents and title = '{file_name}' and trashed = false"}).GetList()
         for old_file in file_list:
             old_file.Delete()
@@ -77,7 +73,7 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
             'parents': [{'id': folder_id}]
         })
         drive_file.SetContentFile(local_file_path)
-        drive_file.Upload() # สั่งยิงไฟล์ขึ้นคลาวด์ทันที
+        drive_file.Upload()
         print(f"🚀 ซิงก์ไฟล์เข้า Google Drive สำเร็จ: {file_name}")
         return True
     except Exception as e:
@@ -95,6 +91,26 @@ THAI_REGIONS = {
     "ภาคใต้": ["ภูเก็ต", "สงขลา", "สุราษฎร์ธานี", "นครศรีธรรมราช", "กระบี่", "พังงา", "ตรัง", "พัทลุง", "ชุมพร", "ระนอง", "สตูล", "ปัตตานี", "ยะลา", "นราธิวาส"]
 }
 
+# ฟังก์ชันจัดการระบบฐานข้อมูล
+def load_json_file(file_path, default_val):
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f: return json.load(f)
+        except: return default_val
+    return default_val
+
+def save_json_file(file_path, data):
+    with open(file_path, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=4)
+
+# 🎯 [UPDATED] ปรับกระบวนการเซฟไฟล์ ให้สั่ง Auto ซิงก์กระจายไฟล์ทุกประเภทขึ้น Drive ทันทีที่มีความเคลื่อนไหว
+def save_data(data): save_json_file(DB_FILE, data); upload_to_google_drive(DB_FILE)
+def save_requestors(data): save_json_file(USER_FILE, data); upload_to_google_drive(USER_FILE)
+def save_suppliers(data): save_json_file(SUP_FILE, data); upload_to_google_drive(SUP_FILE)
+def save_standalone_prices(data): save_json_file(STANDALONE_FILE, data); upload_to_google_drive(STANDALONE_FILE)
+def save_item_codes(data): save_json_file(ITEM_FILE, data); upload_to_google_drive(ITEM_FILE)
+def save_units(data): save_json_file(UNIT_FILE, data); upload_to_google_drive(UNIT_FILE)
+def save_categories(data): save_json_file(CATEGORIES_FILE, data); upload_to_google_drive(CATEGORIES_FILE)
+def save_pur_proposals(data): save_json_file(PUR_FILE, data); upload_to_google_drive(PUR_FILE)
 # ฟังก์ชันจัดการระบบจัดการเปิดโฟลเดอร์จำลอง Local
 def open_local_folder(folder_path):
     try:
