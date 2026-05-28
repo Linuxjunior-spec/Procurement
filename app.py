@@ -41,8 +41,8 @@ PUR_FILE = os.path.join(BASE_DIR, "pur_proposals.json")
 if not os.path.exists(SUP_DOC_DIR):
     os.makedirs(SUP_DOC_DIR)
 
-# 🎯 [UPDATED] ฟังก์ชันเชื่อมต่อ Google Drive แก้รหัส Folder ID ให้ถูกต้อง (ไอตัวใหญ่)
-def upload_to_google_drive(local_file_path, folder_id="https://drive.google.com/drive/folders/1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
+# 🎯 [FIXED] ฟังก์ชันเชื่อมต่อ Google Drive (คืนค่ารหัส Folder ID เป็นตัว l (แอลเล็ก) ตามลิงก์จริงที่ถูกต้อง 100%)
+def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         if not os.path.exists(local_file_path):
             return False
@@ -80,8 +80,7 @@ def upload_to_google_drive(local_file_path, folder_id="https://drive.google.com/
         print(f"Drive Upload Error: {e}")
         return False
 
-# 🎯 [NEW FUNCTION] ฟังก์ชันดาวน์โหลดไฟล์ข้อมูลล่าสุดจาก Google Drive ลงมาที่คลาวด์ตอนเริ่มต้นแอป
-def download_from_google_drive(file_name, local_file_path, folder_id="https://drive.google.com/drive/folders/1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
+def download_from_google_drive(file_name, local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         gauth = GoogleAuth()
         gauth.settings['client_config_backend'] = 'settings'
@@ -107,6 +106,81 @@ def download_from_google_drive(file_name, local_file_path, folder_id="https://dr
     except Exception as e:
         print(f"Drive Download Error: {e}")
         return False
+
+# คลังข้อมูลพิกัดจังหวัดและภูมิภาคของประเทศไทย
+THAI_REGIONS = {
+    "ทั่วประเทศ": ["ทุกจังหวัดทั่วประเทศ"],
+    "ภาคกลาง / ปริมณฑล": ["กรุงเทพมหานคร", "นนทบุรี", "ปทุมธานี", "สมุทรปราการ", "นครปฐม", "สมุทรสาคร", "สมุทรสงคราม", "พระนครศรีอยุธยา", "สระบุรี", "ลพบุรี", "สิงห์บุรี", "อ่างทอง", "ชัยนาท", "อุทัยธานี", "นครสวรรค์"],
+    "ภาคเหนือ": ["เชียงใหม่", "เชียงราย", "ลำปาง", "ลำพูน", "แม่ฮ่องสอน", "พะเยา", "แพร่", "น่าน", "อุตรดิตถ์", "พิษณุโลก", "สุโขทัย", "ตาก", "พิจิตร", "กำแพงเพชร", "เพชรบูรณ์"],
+    "ภาคอีสาน": ["นครราชสีมา", "ขอนแก่น", "อุดรธานี", "อุบลราชธานี", "บุรีรัมย์", "ศรีสะเกษ", "สุรินทร์", "ร้อยเอ็ด", "ชัยภูมิ", "มหาสารคาม", "กาฬสินธุ์", "สกลนคร", "นครพนม", "เลย", "หนองคาย", "หนองบัวลำภู", "บึงกาฬ", "ยโสธร", "อำนาจเจริญ", "มุกดาหาร"],
+    "ภาคตะวันออก": ["ชลบุรี", "ระยอง", "ฉะเชิงเทรา", "จันทบุรี", "ตราด", "ปราจีนบุรี", "สระแก้ว"],
+    "ภาคตะวันตก": ["ราชบุรี", "กาญจนบุรี", "เพชรบุรี", "ประจวบคีรีขันธ์"],
+    "ภาคใต้": ["ภูเก็ต", "สงขลา", "สุราษฎร์ธานี", "นครศรีธรรมราช", "กระบี่", "พังงา", "ตรัง", "พัทลุง", "ชุมพร", "ระนอง", "สตูล", "ปัตตานี", "ยะลา", "นราธิวาส"]
+}
+
+# ฟังก์ชันจัดการระบบจัดการเปิดโฟลเดอร์จำลอง Local
+def open_local_folder(folder_path):
+    try:
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        current_os = platform.system()
+        if current_os == "Windows":
+            os.startfile(folder_path)
+        elif current_os == "Darwin":
+            subprocess.Popen(["open", folder_path])
+        else:
+            subprocess.Popen(["xdg-open", folder_path])
+        st.toast(f"เปิดโฟลเดอร์เรียบร้อยแล้ว: {os.path.basename(folder_path)}", icon="📁")
+    except Exception as e:
+        st.error(f"ไม่สามารถเปิดโฟลเดอร์ได้อัตโนมัติ: {e}")
+
+# ฟังก์ชันจัดการระบบฐานข้อมูล
+def load_json_file(file_path, default_val):
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f: return json.load(f)
+        except: return default_val
+    return default_val
+
+def save_json_file(file_path, data):
+    with open(file_path, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=4)
+
+def save_data(data): save_json_file(DB_FILE, data); upload_to_google_drive(DB_FILE)
+def save_requestors(data): save_json_file(USER_FILE, data); upload_to_google_drive(USER_FILE)
+def save_suppliers(data): save_json_file(SUP_FILE, data); upload_to_google_drive(SUP_FILE)
+def save_standalone_prices(data): save_json_file(STANDALONE_FILE, data); upload_to_google_drive(STANDALONE_FILE)
+def save_item_codes(data): save_json_file(ITEM_FILE, data); upload_to_google_drive(ITEM_FILE)
+def save_units(data): save_json_file(UNIT_FILE, data); upload_to_google_drive(UNIT_FILE)
+def save_categories(data): save_json_file(CATEGORIES_FILE, data); upload_to_google_drive(CATEGORIES_FILE)
+def save_pur_proposals(data):
+    # ดักจับเงื่อนไข: ถ้าระบบคลาวด์พยายามส่งข้อมูลว่างเปล่ามาทับ ทั้งๆ ที่บน Drive เคยมีประวัติ ให้ตัดคำสั่งทิ้งทันที
+    if not data and download_from_google_drive("pur_proposals.json", PUR_FILE):
+        data = load_json_file(PUR_FILE, [])
+        st.session_state.pur_proposals = data
+    save_json_file(PUR_FILE, data)
+    upload_to_google_drive(PUR_FILE)
+
+# 🎯 [NEW LOGIC] ตัวกรองอัจฉริยะ: ดึงข้อมูลจาก Google Drive "เฉพาะตอนรีเฟรชเข้าแอปครั้งแรก" เท่านั้น (แก้ปัญหาแอปอืด/ค้าง)
+if 'app_initialized' not in st.session_state:
+    download_from_google_drive("rfq_data.json", DB_FILE)
+    download_from_google_drive("requestors_data.json", USER_FILE)
+    download_from_google_drive("suppliers_master.json", SUP_FILE)
+    download_from_google_drive("standalone_prices.json", STANDALONE_FILE)
+    download_from_google_drive("item_codes_master.json", ITEM_FILE)
+    download_from_google_drive("units_master.json", UNIT_FILE)
+    download_from_google_drive("categories_master.json", CATEGORIES_FILE)
+    download_from_google_drive("pur_proposals.json", PUR_FILE)
+    st.session_state.app_initialized = True
+
+# โหลดข้อมูลเข้าสู่ตัวแปรระบบ Session State 
+if 'rfq_history' not in st.session_state: st.session_state.rfq_history = load_json_file(DB_FILE, []) 
+if 'requestors_list' not in st.session_state: st.session_state.requestors_list = load_json_file(USER_FILE, ["คุณสมชาย", "คุณสมหญิง"]) 
+if 'suppliers_master' not in st.session_state: st.session_state.suppliers_master = load_json_file(SUP_FILE, []) 
+if 'standalone_prices' not in st.session_state: st.session_state.standalone_prices = load_json_file(STANDALONE_FILE, []) 
+if 'item_codes_master' not in st.session_state: st.session_state.item_codes_master = load_json_file(ITEM_FILE, []) 
+if 'units_list' not in st.session_state: st.session_state.units_list = load_json_file(UNIT_FILE, ["M", "ชุด", "ตัว", "ตร.ม.", "กิโลกรัม", "ท่อน", "ม้วน"]) 
+if 'categories_list' not in st.session_state: st.session_state.categories_list = load_json_file(CATEGORIES_FILE, ["สายไฟ", "ท่อร้อยสาย", "อุปกรณ์ไฟฟ้า", "งานระบบ", "ทั่วไป"]) 
+if 'pur_proposals' not in st.session_state: st.session_state.pur_proposals = load_json_file(PUR_FILE, [])
 
 # คลังข้อมูลพิกัดจังหวัดและภูมิภาคของประเทศไทย
 THAI_REGIONS = {
