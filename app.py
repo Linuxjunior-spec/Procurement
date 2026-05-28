@@ -16,7 +16,7 @@ from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# [FIXED 1] นำเข้าโมดูลสำหรับจัดการสิทธิ์ Service Account ของ Google Drive ให้ถูกต้องตามหลักสากล
+# นำเข้าโมดูลสำหรับจัดการสิทธิ์ Service Account ของ Google Drive ให้ถูกต้องตามหลักสากล
 from oauth2client.service_account import ServiceAccountCredentials
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
@@ -25,25 +25,25 @@ from pydrive2.drive import GoogleDrive
 st.set_page_config(page_title="Procurement Workspace", layout="wide")
 
 # เปลี่ยนตำแหน่งที่เก็บให้ไปอยู่ที่ Drive D หรือโฟลเดอร์ที่ปลอดภัยในเครื่อง 
-BASE_DIR = "D:/ProcurementData" [cite: 749]
+BASE_DIR = "D:/ProcurementData"
 if not os.path.exists(BASE_DIR):
-    os.makedirs(BASE_DIR) [cite: 749]
+    os.makedirs(BASE_DIR)
 
 # กำหนดที่เก็บไฟล์ฐานข้อมูลและโฟลเดอร์เอกสารให้อยู่ด้านใน Procurement-App ทั้งหมด 
-DB_FILE = os.path.join(BASE_DIR, "rfq_data.json") [cite: 749]
-USER_FILE = os.path.join(BASE_DIR, "requestors_data.json") [cite: 749]
-SUP_FILE = os.path.join(BASE_DIR, "suppliers_master.json") [cite: 749]
-SUP_DOC_DIR = os.path.join(BASE_DIR, "supplier_documents") [cite: 749]
-STANDALONE_FILE = os.path.join(BASE_DIR, "standalone_prices.json") [cite: 749]
-ITEM_FILE = os.path.join(BASE_DIR, "item_codes_master.json") [cite: 749]
-UNIT_FILE = os.path.join(BASE_DIR, "units_master.json") [cite: 749]
-CATEGORIES_FILE = os.path.join(BASE_DIR, "categories_master.json") [cite: 749]
-PUR_FILE = os.path.join(BASE_DIR, "pur_proposals.json") [cite: 749]
+DB_FILE = os.path.join(BASE_DIR, "rfq_data.json")
+USER_FILE = os.path.join(BASE_DIR, "requestors_data.json")
+SUP_FILE = os.path.join(BASE_DIR, "suppliers_master.json")
+SUP_DOC_DIR = os.path.join(BASE_DIR, "supplier_documents")
+STANDALONE_FILE = os.path.join(BASE_DIR, "standalone_prices.json")
+ITEM_FILE = os.path.join(BASE_DIR, "item_codes_master.json")
+UNIT_FILE = os.path.join(BASE_DIR, "units_master.json")
+CATEGORIES_FILE = os.path.join(BASE_DIR, "categories_master.json")
+PUR_FILE = os.path.join(BASE_DIR, "pur_proposals.json")
 
 if not os.path.exists(SUP_DOC_DIR):
-    os.makedirs(SUP_DOC_DIR) [cite: 750]
+    os.makedirs(SUP_DOC_DIR)
 
-# 🎯 [FIXED 2] ปรับแก้ฟังก์ชันเชื่อมต่อ Google Drive อัตโนมัติ โดยครอบเครื่องหมายคำพูดที่ไอดีโฟลเดอร์ให้ถูกต้อง
+# 🎯 [FIXED] อัปเดตเปลี่ยนชื่อไฟล์คีย์ Service Account ให้ตรงตามรูปหน้าจอ VS Code ของพี่เรียบร้อยครับ
 def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         if not os.path.exists(local_file_path):
@@ -51,7 +51,7 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         gauth = GoogleAuth()
         gauth.settings['client_config_backend'] = 'settings'
         gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            os.path.join(BASE_DIR, 'credentials.json'), 
+            os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json'), 
             ['https://www.googleapis.com/auth/drive']
         )
         drive = GoogleDrive(gauth)
@@ -115,98 +115,45 @@ def save_units(data): save_json_file(UNIT_FILE, data); upload_to_google_drive(UN
 def save_categories(data): save_json_file(CATEGORIES_FILE, data); upload_to_google_drive(CATEGORIES_FILE)
 def save_pur_proposals(data): save_json_file(PUR_FILE, data); upload_to_google_drive(PUR_FILE)
 
-# โหลดข้อมูลเข้าสู่ตัวแปรระบบ Session State [cite: 753]
-if 'rfq_history' not in st.session_state: st.session_state.rfq_history = load_json_file(DB_FILE, []) [cite: 753]
-if 'requestors_list' not in st.session_state: st.session_state.requestors_list = load_json_file(USER_FILE, ["คุณสมชาย", "คุณสมหญิง"]) [cite: 753]
-if 'suppliers_master' not in st.session_state: st.session_state.suppliers_master = load_json_file(SUP_FILE, []) [cite: 753]
-if 'standalone_prices' not in st.session_state: st.session_state.standalone_prices = load_json_file(STANDALONE_FILE, []) [cite: 753]
-if 'item_codes_master' not in st.session_state: st.session_state.item_codes_master = load_json_file(ITEM_FILE, []) [cite: 754]
-if 'units_list' not in st.session_state: st.session_state.units_list = load_json_file(UNIT_FILE, ["M", "ชุด", "ตัว", "ตร.ม.", "กิโลกรัม", "ท่อน", "ม้วน"]) [cite: 754]
-if 'categories_list' not in st.session_state: st.session_state.categories_list = load_json_file(CATEGORIES_FILE, ["สายไฟ", "ท่อร้อยสาย", "อุปกรณ์ไฟฟ้า", "งานระบบ", "ทั่วไป"]) [cite: 754]
-if 'pur_proposals' not in st.session_state: st.session_state.pur_proposals = load_json_file(PUR_FILE, []) [cite: 754]
+# โหลดข้อมูลเข้าสู่ตัวแปรระบบ Session State 
+if 'rfq_history' not in st.session_state: st.session_state.rfq_history = load_json_file(DB_FILE, []) 
+if 'requestors_list' not in st.session_state: st.session_state.requestors_list = load_json_file(USER_FILE, ["คุณสมชาย", "คุณสมหญิง"]) 
+if 'suppliers_master' not in st.session_state: st.session_state.suppliers_master = load_json_file(SUP_FILE, []) 
+if 'standalone_prices' not in st.session_state: st.session_state.standalone_prices = load_json_file(STANDALONE_FILE, []) 
+if 'item_codes_master' not in st.session_state: st.session_state.item_codes_master = load_json_file(ITEM_FILE, []) 
+if 'units_list' not in st.session_state: st.session_state.units_list = load_json_file(UNIT_FILE, ["M", "ชุด", "ตัว", "ตร.ม.", "กิโลกรัม", "ท่อน", "ม้วน"]) 
+if 'categories_list' not in st.session_state: st.session_state.categories_list = load_json_file(CATEGORIES_FILE, ["สายไฟ", "ท่อร้อยสาย", "อุปกรณ์ไฟฟ้า", "งานระบบ", "ทั่วไป"]) 
+if 'pur_proposals' not in st.session_state: st.session_state.pur_proposals = load_json_file(PUR_FILE, []) 
 
-if 'temp_contacts' not in st.session_state: st.session_state.temp_contacts = [{"name": "", "phone": "", "email": "", "line": ""}] [cite: 754]
-if 'selected_supplier_name' not in st.session_state: st.session_state.selected_supplier_name = None [cite: 754]
-if 'sup_clear_counter' not in st.session_state: st.session_state.sup_clear_counter = 0 [cite: 754]
-if 'areas_output_add' not in st.session_state: st.session_state.areas_output_add = "ยังไม่ได้เลือกพื้นที่" [cite: 754]
-if 'selected_search_province' not in st.session_state: st.session_state.selected_search_province = None [cite: 754]
-if 'current_pur_id' not in st.session_state: st.session_state.current_pur_id = None [cite: 754]
+if 'temp_contacts' not in st.session_state: st.session_state.temp_contacts = [{"name": "", "phone": "", "email": "", "line": ""}] 
+if 'selected_supplier_name' not in st.session_state: st.session_state.selected_supplier_name = None 
+if 'sup_clear_counter' not in st.session_state: st.session_state.sup_clear_counter = 0 
+if 'areas_output_add' not in st.session_state: st.session_state.areas_output_add = "ยังไม่ได้เลือกพื้นที่" 
+if 'selected_search_province' not in st.session_state: st.session_state.selected_search_province = None 
+if 'current_pur_id' not in st.session_state: st.session_state.current_pur_id = None 
 
 # --- ฟังก์ชันย่อยสำหรับแจ้งเตือนพิกัดจังหวัด/หมวดหมู่/หน่วยนับ (Dialogs) ---
-@st.dialog("🌍 เลือกพื้นที่ที่สามารถรับงานได้") [cite: 754]
+# 🎯 [FIXED] คลีนลบข้อความแปลกปลอมออกจากฟังก์ชัน Dialog ด้านล่างนี้เรียบร้อยครับ
+@st.dialog("🌍 เลือกพื้นที่ที่สามารถรับงานได้") 
 def select_areas_dialog():
-    st.write("เลือกภาค หรือติ๊กเลือกรายจังหวัดตามต้องการ (เสร็จแล้วกดบันทึกด้านล่าง)") [cite: 754]
-    chosen_list = [] [cite: 755]
-    for region, provinces in THAI_REGIONS.items(): [cite: 755]
-        st.markdown(f"**{region}**") [cite: 755]
-        reg_click = st.checkbox(f"เลือกทั้งหมดใน {region}", key=f"pop_reg_{region}") [cite: 755]
-        if region != "ทั่วประเทศ": [cite: 755]
-            cols = st.columns(4) [cite: 755]
-            for idx, prov in enumerate(provinces): [cite: 755]
-                col = cols[idx % 4] [cite: 755]
-                prov_chk = col.checkbox(prov, value=reg_click, key=f"pop_prov_{prov}") [cite: 756]
-                if prov_chk or reg_click: [cite: 756]
-                    if prov not in chosen_list: chosen_list.append(prov) [cite: 756]
-        else: [cite: 756]
-            if reg_click: chosen_list.append("ทุกจังหวัดทั่วประเทศ") [cite: 756]
-        st.markdown("---") [cite: 756]
-    if st.button("💾 ยืนยันการเลือกพื้นที่", use_container_width=True): [cite: 756]
-        st.session_state.areas_output_add = "ทุกจังหวัดทั่วประเทศ" if "ทุกจังหวัดทั่วประเทศ" in chosen_list else ", ".join(chosen_list) [cite: 757]
-        st.rerun() [cite: 757]
-
-@st.dialog("🔍 ค้นหาและเลือกซัพพลายเออร์") [cite: 757]
-def select_supplier_popup():
-    sup_choices = [s["name"] for s in st.session_state.suppliers_master] [cite: 757]
-    chosen_sup = st.selectbox("พิมพ์ค้นหาชื่อบริษัท / ผู้ขาย", sup_choices) [cite: 757]
-    if st.button("✅ ยืนยันเปิดดูโปรไฟล์", use_container_width=True): [cite: 757]
-        st.session_state.selected_supplier_name = chosen_sup [cite: 757]
-        st.rerun() [cite: 757]
-
-@st.dialog("🎯 ค้นหาและเลือกจังหวัดพิกัดไซต์งาน") [cite: 757]
-def select_search_province_popup():
-    flat_provinces_search = [] [cite: 757]
-    for k, v in THAI_REGIONS.items(): [cite: 757]
-        if k != "ทั่วประเทศ": flat_provinces_search.extend(v) [cite: 757]
-    flat_provinces_search.sort() [cite: 757]
-    chosen_search_prov = st.selectbox("พิมพ์ค้นหาชื่อจังหวัด", flat_provinces_search) [cite: 758]
-    if st.button("✅ ยืนยันเลือกจังหวัดนี้", use_container_width=True): [cite: 758]
-        st.session_state.selected_search_province = chosen_search_prov [cite: 758]
-        st.rerun() [cite: 758]
-
-@st.dialog("📝 แก้ไขข้อมูลซัพพลายเออร์") [cite: 758]
-def edit_supplier_popup(sup_obj, idx_master):
-    e_tax = st.text_input("เลขประจำตัวผู้เสียภาษี (Tax ID)", value=sup_obj.get("tax_id", "")) [cite: 758]
-    e_credit = st.text_input("เครดิตเทอม", value=sup_obj.get("credit", "")) [cite: 758]
-    e_address = st.text_area("ที่อยู่บริษัท", value=sup_obj.get("address", "")) [cite: 758]
-    e_info = st.text_area("หมายเหตุทั่วไป", value=sup_obj.get("general_info", "")) [cite: 758]
-    if st.button("💾 บันทึกการแก้ไขข้อมูล", use_container_width=True): [cite: 758]
-        st.session_state.suppliers_master[idx_master].update({"tax_id": e_tax, "credit": e_credit, "address": e_address, "general_info": e_info}) [cite: 758]
-        save_suppliers(st.session_state.suppliers_master) [cite: 758]
-        st.rerun() [cite: 759]
-
-@st.dialog("👥 บริหารจัดการรายชื่อผู้ติดต่อ") [cite: 759]
-def edit_contacts_popup(sup_obj, idx_master):
-    updated_items = [] [cite: 759]
-    for i, contact in enumerate(st.session_state.edit_contacts_list): [cite: 759]
-        ec_c1, ec_c2, ec_c3, ec_c4 = st.columns(4) [cite: 759]
-        c_name = ec_c1.text_input("ชื่อ", value=contact.get("name", ""), key=f"ec_n_{i}") [cite: 759]
-        c_phone = ec_c2.text_input("เบอร์โทร", value=contact.get("phone", ""), key=f"ec_p_{i}") [cite: 759]
-        c_email = ec_c3.text_input("Email", value=contact.get("email", ""), key=f"ec_e_{i}") [cite: 759]
-        c_line = ec_c4.text_input("Line ID", value=contact.get("line", ""), key=f"ec_l_{i}") [cite: 759]
-        updated_items.append({"name": c_name, "phone": c_phone, "email": c_email, "line": c_line}) [cite: 759]
-    if st.button("💾 บันทึกการเปลี่ยนแปลงรายชื่อ", use_container_width=True): [cite: 760]
-        st.session_state.suppliers_master[idx_master]["contacts"] = [c for c in updated_items if c["name"].strip()] [cite: 760]
-        save_suppliers(st.session_state.suppliers_master) [cite: 760]
-        st.rerun() [cite: 760]
-
-@st.dialog("➕ ลงทะเบียนหน่วยนับมาตรฐานใหม่") [cite: 760]
-def add_unit_dialog():
-    new_unit = st.text_input("ชื่อหน่วยนับ (Unit Name)").strip()
-    if st.button("💾 บันทึกหน่วยนับใหม่", use_container_width=True):
-        if new_unit and new_unit not in st.session_state.units_list:
-            st.session_state.units_list.append(new_unit)
-            save_units(st.session_state.units_list)
-            st.rerun()
+    st.write("เลือกภาค หรือติ๊กเลือกรายจังหวัดตามต้องการ (เสร็จแล้วกดบันทึกด้านล่าง)") 
+    chosen_list = [] 
+    for region, provinces in THAI_REGIONS.items(): 
+        st.markdown(f"**{region}**") 
+        reg_click = st.checkbox(f"เลือกทั้งหมดใน {region}", key=f"pop_reg_{region}") 
+        if region != "ทั่วประเทศ": 
+            cols = st.columns(4) 
+            for idx, prov in enumerate(provinces): 
+                col = cols[idx % 4] 
+                prov_chk = col.checkbox(prov, value=reg_click, key=f"pop_prov_{prov}") 
+                if prov_chk or reg_click: 
+                    if prov not in chosen_list: chosen_list.append(prov) 
+        else: 
+            if reg_click: chosen_list.append("ทุกจังหวัดทั่วประเทศ") 
+        st.markdown("---") 
+    if st.button("💾 ยืนยันการเลือกพื้นที่", use_container_width=True): 
+        st.session_state.areas_output_add = "ทุกจังหวัดทั่วประเทศ" if "ทุกจังหวัดทั่วประเทศ" in chosen_list else ", ".join(chosen_list) 
+        st.rerun()
 
 @st.dialog("➕ ลงทะเบียนหมวดหมู่งานมาตรฐานใหม่") [cite: 761]
 def add_category_dialog():
