@@ -201,13 +201,12 @@ def edit_contacts_popup(sup_obj, idx_master):
 
 @st.dialog("➕ ลงทะเบียนหน่วยนับมาตรฐานใหม่") [cite: 760]
 def add_unit_dialog():
-    
-    new_unit = st.text_input("ชื่อหน่วยนับ (Unit Name)").strip() [cite: 760]
-    if st.button("💾 บันทึกหน่วยนับใหม่", use_container_width=True): [cite: 760]
-        if new_unit and new_unit not in st.session_state.units_list: [cite: 760]
-            st.session_state.units_list.append(new_unit) [cite: 760]
-            save_units(st.session_state.units_list) [cite: 760]
-            st.rerun() [cite: 761]
+    new_unit = st.text_input("ชื่อหน่วยนับ (Unit Name)").strip()
+    if st.button("💾 บันทึกหน่วยนับใหม่", use_container_width=True):
+        if new_unit and new_unit not in st.session_state.units_list:
+            st.session_state.units_list.append(new_unit)
+            save_units(st.session_state.units_list)
+            st.rerun()
 
 @st.dialog("➕ ลงทะเบียนหมวดหมู่งานมาตรฐานใหม่") [cite: 761]
 def add_category_dialog():
