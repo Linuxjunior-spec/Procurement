@@ -19,9 +19,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 # ตั้งค่าหน้าจอโปรแกรม
 st.set_page_config(page_title="Procurement Workspace", layout="wide")
 
-# ล็อกที่อยู่โฟลเดอร์หลักเมื่อรันบนคลาวด์ให้อยู่ในตำแหน่งทำงานปัจจุบัน (Relative Path)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
+# เปลี่ยนตำแหน่งที่เก็บให้ไปอยู่ที่ Drive D หรือโฟลเดอร์ที่ปลอดภัยในเครื่อง
+BASE_DIR = "D:/ProcurementData"
 if not os.path.exists(BASE_DIR):
     os.makedirs(BASE_DIR)
 
