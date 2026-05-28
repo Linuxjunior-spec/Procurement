@@ -41,7 +41,7 @@ PUR_FILE = os.path.join(BASE_DIR, "pur_proposals.json")
 if not os.path.exists(SUP_DOC_DIR):
     os.makedirs(SUP_DOC_DIR)
 
-# 🎯 [UPDATED] ฟังก์ชันเชื่อมต่อและซิงก์ Google Drive คลาวด์ที่ปรับระยะเส้นทางให้แม่นยำที่สุด
+# ฟังก์ชันเชื่อมต่อ Google Drive อัตโนมัติด้วย Service Account คีย์ของพี่
 def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         if not os.path.exists(local_file_path):
@@ -51,11 +51,12 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         gauth = GoogleAuth()
         gauth.settings['client_config_backend'] = 'settings'
         
-        # ล็อกพิกัดตำแหน่งไฟล์คีย์ให้อ่านจากรากของโปรเจกต์เสมอบนคลาวด์
-        key_path = os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json')
+        # 🎯 ปรับให้ค้นหาจากโฟลเดอร์หลักปัจจุบันของแอปพลิเคชันโดยตรงบนคลาวด์
+        key_filename = 'procurement-497602-82656c1d03df.json'
+        key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), key_filename)
             
         if not os.path.exists(key_path):
-            st.error(f"❌ ไม่พบไฟล์คีย์ข้อตกลงสิทธิ์บนเซิร์ฟเวอร์: {key_path}")
+            print(f"⚠️ ไม่พบไฟล์คีย์ Service Account ในตำแหน่ง: {key_path}")
             return False
             
         gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
@@ -66,7 +67,7 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         
         file_name = os.path.basename(local_file_path)
         
-        # ทำการตรวจสอบและลบไฟล์เดิมใน Drive ที่ชื่อซ้ำกันออกก่อนเพื่อไม่ให้ไฟล์ขยะซ้อนเป็นหลายเวอร์ชัน
+        # ตรวจสอบและลบไฟล์ชื่อซ้ำเดิมออก เพื่อป้องกันไฟล์ขยะทับถมซ้ำซ้อนใน Drive
         file_list = drive.ListFile({'q': f"'{folder_id}' in parents and title = '{file_name}' and trashed = false"}).GetList()
         for old_file in file_list:
             old_file.Delete()
@@ -76,7 +77,8 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
             'parents': [{'id': folder_id}]
         })
         drive_file.SetContentFile(local_file_path)
-        drive_file.Upload()
+        drive_file.Upload() # สั่งยิงไฟล์ขึ้นคลาวด์ทันที
+        print(f"🚀 ซิงก์ไฟล์เข้า Google Drive สำเร็จ: {file_name}")
         return True
     except Exception as e:
         print(f"Drive Upload Error: {e}")
@@ -120,14 +122,37 @@ def load_json_file(file_path, default_val):
 def save_json_file(file_path, data):
     with open(file_path, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=4)
 
-def save_data(data): save_json_file(DB_FILE, data); upload_to_google_drive(DB_FILE)
-def save_requestors(data): save_json_file(USER_FILE, data); upload_to_google_drive(USER_FILE)
-def save_suppliers(data): save_json_file(SUP_FILE, data); upload_to_google_drive(SUP_FILE)
-def save_standalone_prices(data): save_json_file(STANDALONE_FILE, data); upload_to_google_drive(STANDALONE_FILE)
-def save_item_codes(data): save_json_file(ITEM_FILE, data); upload_to_google_drive(ITEM_FILE)
-def save_units(data): save_json_file(UNIT_FILE, data); upload_to_google_drive(UNIT_FILE)
-def save_categories(data): save_json_file(CATEGORIES_FILE, data); upload_to_google_drive(CATEGORIES_FILE)
-def save_pur_proposals(data): save_json_file(PUR_FILE, data); upload_to_google_drive(PUR_FILE)
+def save_data(data): 
+    save_json_file(DB_FILE, data)
+    upload_to_google_drive(DB_FILE) # ดันไฟล์ฐานข้อมูลจัดซื้อหลักเข้า Drive อัตโนมัติ [cite: 587, 588]
+
+def save_requestors(data): 
+    save_json_file(USER_FILE, data)
+    upload_to_google_drive(USER_FILE) # ดันรายชื่อผู้ร้องขอเข้า Drive [cite: 588]
+
+def save_suppliers(data): 
+    save_json_file(SUP_FILE, data)
+    upload_to_google_drive(SUP_FILE) # ดันทะเบียน Supplier เข้า Drive [cite: 588]
+
+def save_standalone_prices(data): 
+    save_json_file(STANDALONE_FILE, data)
+    upload_to_google_drive(STANDALONE_FILE) # ดันคลังราคาตรงเข้า Drive [cite: 588]
+
+def save_item_codes(data): 
+    save_json_file(ITEM_FILE, data)
+    upload_to_google_drive(ITEM_FILE) # ดันรหัสพัสดุกลางเข้า Drive [cite: 588]
+
+def save_units(data): 
+    save_json_file(UNIT_FILE, data)
+    upload_to_google_drive(UNIT_FILE) # ดันคลังหน่วยนับเข้า Drive [cite: 588, 589]
+
+def save_categories(data): 
+    save_json_file(CATEGORIES_FILE, data)
+    upload_to_google_drive(CATEGORIES_FILE) # ดันกลุ่มหมวดหมู่งานเข้า Drive [cite: 589]
+
+def save_pur_proposals(data): 
+    save_json_file(PUR_FILE, data)
+    upload_to_google_drive(PUR_FILE) # ดันประวัติใบเสนอราคา PUR เข้า Drive [cite: 589]
 
 # โหลดข้อมูลเข้าสู่ตัวแปรระบบ Session State 
 if 'rfq_history' not in st.session_state: st.session_state.rfq_history = load_json_file(DB_FILE, []) 
@@ -167,7 +192,7 @@ def select_areas_dialog():
     if st.button("💾 ยืนยันการเลือกพื้นที่", use_container_width=True): 
         st.session_state.areas_output_add = "ทุกจังหวัดทั่วประเทศ" if "ทุกจังหวัดทั่วประเทศ" in chosen_list else ", ".join(chosen_list) 
         st.rerun()
-        
+
 @st.dialog("🔍 ค้นหาและเลือกซัพพลายเออร์")
 def select_supplier_popup():
     if not st.session_state.suppliers_master:
