@@ -167,6 +167,55 @@ def select_areas_dialog():
     if st.button("💾 ยืนยันการเลือกพื้นที่", use_container_width=True): 
         st.session_state.areas_output_add = "ทุกจังหวัดทั่วประเทศ" if "ทุกจังหวัดทั่วประเทศ" in chosen_list else ", ".join(chosen_list) 
         st.rerun()
+        @st.dialog("🔍 ค้นหาและเลือกซัพพลายเออร์")
+        
+def select_supplier_popup():
+    if not st.session_state.suppliers_master:
+        st.warning("⚠️ ปัจจุบันยังไม่มีข้อมูลซัพพลายเออร์ในระบบคลัง")
+        return
+    sup_choices = [s["name"] for s in st.session_state.suppliers_master]
+    chosen_sup = st.selectbox("พิมพ์ค้นหาชื่อบริษัท / ผู้ขาย", sup_choices)
+    if st.button("✅ ยืนยันเปิดดูโปรไฟล์", use_container_width=True):
+        st.session_state.selected_supplier_name = chosen_sup
+        st.rerun()
+
+@st.dialog("🎯 ค้นหาและเลือกจังหวัดพิกัดไซต์งาน")
+def select_search_province_popup():
+    flat_provinces_search = []
+    for k, v in THAI_REGIONS.items():
+        if k != "ทั่วประเทศ": 
+            flat_provinces_search.extend(v)
+    flat_provinces_search.sort()
+    chosen_search_prov = st.selectbox("พิมพ์ค้นหาชื่อจังหวัด", flat_provinces_search)
+    if st.button("✅ ยืนยันเลือกจังหวัดนี้", use_container_width=True):
+        st.session_state.selected_search_province = chosen_search_prov
+        st.rerun()
+
+@st.dialog("¼ แก้ไขข้อมูลซัพพลายเออร์")
+def edit_supplier_popup(sup_obj, idx_master):
+    e_tax = st.text_input("เลขประจำตัวผู้เสียภาษี (Tax ID)", value=sup_obj.get("tax_id", ""))
+    e_credit = st.text_input("เครดิตเทอม", value=sup_obj.get("credit", ""))
+    e_address = st.text_area("ที่อยู่บริษัท", value=sup_obj.get("address", ""))
+    e_info = st.text_area("หมายเหตุทั่วไป", value=sup_obj.get("general_info", ""))
+    if st.button("💾 บันทึกการแก้ไขข้อมูล", use_container_width=True):
+        st.session_state.suppliers_master[idx_master].update({"tax_id": e_tax, "credit": e_credit, "address": e_address, "general_info": e_info})
+        save_suppliers(st.session_state.suppliers_master)
+        st.rerun()
+
+@st.dialog("👥 บริหารจัดการรายชื่อผู้ติดต่อ")
+def edit_contacts_popup(sup_obj, idx_master):
+    updated_items = []
+    for i, contact in enumerate(st.session_state.edit_contacts_list):
+        ec_c1, ec_c2, ec_c3, ec_c4 = st.columns(4)
+        c_name = ec_c1.text_input("ชื่อ", value=contact.get("name", ""), key=f"ec_n_{i}")
+        c_phone = ec_c2.text_input("เบอร์โทร", value=contact.get("phone", ""), key=f"ec_p_{i}")
+        c_email = ec_c3.text_input("Email", value=contact.get("email", ""), key=f"ec_e_{i}")
+        c_line = ec_c4.text_input("Line ID", value=contact.get("line", ""), key=f"ec_l_{i}")
+        updated_items.append({"name": c_name, "phone": c_phone, "email": c_email, "line": c_line})
+    if st.button("💾 บันทึกการเปลี่ยนแปลงรายชื่อ", use_container_width=True):
+        st.session_state.suppliers_master[idx_master]["contacts"] = [c for c in updated_items if c["name"].strip()]
+        save_suppliers(st.session_state.suppliers_master)
+        st.rerun()
 
 @st.dialog("➕ ลงทะเบียนหน่วยนับมาตรฐานใหม่")
 def add_unit_dialog():
