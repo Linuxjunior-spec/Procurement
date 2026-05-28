@@ -24,14 +24,8 @@ from pydrive2.drive import GoogleDrive
 # ตั้งค่าหน้าจอโปรแกรม
 st.set_page_config(page_title="Procurement Workspace", layout="wide")
 
-# 🎯 [FIXED] เช็คสภาพแวดล้อมอัจฉริยะ (ถ้าอยู่บน Windows คอมพี่จะเซฟเข้า Drive D อัตโนมัติ ถ้ารันบนคลาวด์จะดึงจากโฟลเดอร์โปรเจกต์ปัจจุบันเพื่อไม่ให้ฟอนต์หรือโลโก้ SHARGE พัง)
-if platform.system() == "Windows":
-    BASE_DIR = "D:/ProcurementData"
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-if not os.path.exists(BASE_DIR):
-    os.makedirs(BASE_DIR)
+# 🎯 [UPDATED] ล็อกตำแหน่งโฟลเดอร์สำหรับทำงานบนระบบคลาวด์ให้เสถียรและค้นหาฟอนต์/คีย์เจอแน่นอน
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # กำหนดที่เก็บไฟล์ฐานข้อมูลและโฟลเดอร์เอกสาร
 DB_FILE = os.path.join(BASE_DIR, "rfq_data.json")
@@ -47,23 +41,21 @@ PUR_FILE = os.path.join(BASE_DIR, "pur_proposals.json")
 if not os.path.exists(SUP_DOC_DIR):
     os.makedirs(SUP_DOC_DIR)
 
-# ฟังก์ชันเชื่อมต่อ Google Drive อัตโนมัติด้วย Service Account คีย์ของพี่
+# 🎯 [UPDATED] ฟังก์ชันเชื่อมต่อและซิงก์ Google Drive คลาวด์ที่ปรับระยะเส้นทางให้แม่นยำที่สุด
 def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         if not os.path.exists(local_file_path):
+            print(f"⚠️ ไม่พบไฟล์โลคอลในระบบ: {local_file_path}")
             return False
+            
         gauth = GoogleAuth()
         gauth.settings['client_config_backend'] = 'settings'
         
-        # ตรวจสอบพิกัดไฟล์คีย์ตามสภาพแวดล้อมของเซิร์ฟเวอร์
-        key_filename = 'procurement-497602-82656c1d03df.json'
-        if platform.system() == "Windows":
-            key_path = os.path.join("D:/ProcurementData", key_filename)
-        else:
-            key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), key_filename)
+        # ล็อกพิกัดตำแหน่งไฟล์คีย์ให้อ่านจากรากของโปรเจกต์เสมอบนคลาวด์
+        key_path = os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json')
             
         if not os.path.exists(key_path):
-            print(f"⚠️ ไม่พบไฟล์คีย์ Service Account ในตำแหน่ง: {key_path}")
+            st.error(f"❌ ไม่พบไฟล์คีย์ข้อตกลงสิทธิ์บนเซิร์ฟเวอร์: {key_path}")
             return False
             
         gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
@@ -73,6 +65,12 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         drive = GoogleDrive(gauth)
         
         file_name = os.path.basename(local_file_path)
+        
+        # ทำการตรวจสอบและลบไฟล์เดิมใน Drive ที่ชื่อซ้ำกันออกก่อนเพื่อไม่ให้ไฟล์ขยะซ้อนเป็นหลายเวอร์ชัน
+        file_list = drive.ListFile({'q': f"'{folder_id}' in parents and title = '{file_name}' and trashed = false"}).GetList()
+        for old_file in file_list:
+            old_file.Delete()
+            
         drive_file = drive.CreateFile({
             'title': file_name,
             'parents': [{'id': folder_id}]
@@ -172,7 +170,6 @@ def select_areas_dialog():
 
 @st.dialog("➕ ลงทะเบียนหน่วยนับมาตรฐานใหม่")
 def add_unit_dialog():
-    # 🎯 [FIXED] เคลียร์เศษขยะและจัดระเบียบ Syntax ของปุ่มเพิ่มหน่วยนับเรียบร้อยครับ
     new_unit = st.text_input("ชื่อหน่วยนับ (Unit Name)").strip()
     if st.button("💾 บันทึกหน่วยนับใหม่", use_container_width=True):
         if new_unit and new_unit not in st.session_state.units_list:
@@ -1298,7 +1295,6 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     items_list = curr_pur_obj.get("items", [])
                     categories_in_doc = []
                     
-                    # 🎯 [FIXED 3] ปรับปรุงกลไกการดึงหมวดหมู่สินค้าแยกกลุ่มให้มีเสถียรภาพสูงสุด ไม่หลุดขัดแย้ง
                     for it in items_list:
                         cat_name = it.get("category")
                         if not cat_name:
@@ -1353,7 +1349,6 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                             current_row_idx += 1
 
                     # ส่วนที่ 4: ตารางสรุปมูลค่ารวมเงินสุทธิ
-                    # 🎯 [FIXED 4] คลีนซ่อมกล่องอักขระหลุดแสดงผลเป็นตัวหนังสือไทยล้วน ป้องกันฟอนต์พังกระดาษ PDF ขาออก
                     table_data.append(["", "", "", "", "", Paragraph("<b>มูลค่ารวมทั้งสิ้น</b>", text_bold), Paragraph(f"<b>{grand_total_boq:,.2f}</b>", text_bold)])
                     
                     table_styles_list.append(('SPAN', (0, current_row_idx), (4, current_row_idx)))
@@ -1389,7 +1384,10 @@ elif main_menu == "📝 จัดทำ BOQ เพื่อเสนอ":
                     story.append(signature_table)
 
                     doc.build(story)
-                    upload_to_google_drive(pdf_path) # ส่งเข้า Google Drive ทั่วถึงอัตโนมัติ
+                    
+                    # 🎯 [UPDATED] สั่งยิงไฟล์ข้อมูลขึ้น Google Drive แบบระบุพิกัดตรงจุด ทันทีแบบ Real-time
+                    upload_to_google_drive(pdf_path) 
+                    upload_to_google_drive(PUR_FILE)
                     
                     with open(pdf_path, "rb") as pdf_file:
                         st.download_button(
