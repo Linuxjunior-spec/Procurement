@@ -68,7 +68,7 @@ def get_google_drive_service():
     return GoogleDrive(gauth)
 
 # 🎯 อัปเดตฟังก์ชัน Upload
-def upload_to_google_drive(local_file_path, folder_id="1hcqai0IVGsGNdGnH9BBKHgjVnNSIKUbU"):
+def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         if not os.path.exists(local_file_path):
             return False
@@ -96,7 +96,7 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0IVGsGNdGnH9BBKHgjV
         return False
 
 # 🎯 อัปเดตฟังก์ชัน Download
-def download_from_google_drive(file_name, local_file_path, folder_id="1hcqai0IVGsGNdGnH9BBKHgjVnNSIKUbU"):
+def download_from_google_drive(file_name, local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         drive = get_google_drive_service()
         if not drive: return False
