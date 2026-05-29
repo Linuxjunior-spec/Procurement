@@ -41,25 +41,40 @@ PUR_FILE = os.path.join(BASE_DIR, "pur_proposals.json")
 if not os.path.exists(SUP_DOC_DIR):
     os.makedirs(SUP_DOC_DIR)
 
-# 🎯 [FIXED] ฟังก์ชันเชื่อมต่อ Google Drive (คืนค่ารหัส Folder ID เป็นตัว l (แอลเล็ก) ตามลิงก์จริงที่ถูกต้อง 100%)
+# 🎯 เพิ่มฟังก์ชันย่อยสำหรับเช็คว่ากำลังรันบน Local หรือ Streamlit Cloud
+def get_google_drive_service():
+    gauth = GoogleAuth()
+    gauth.settings['client_config_backend'] = 'settings'
+    
+    # 1. ตรวจสอบว่ามีค่า google_credentials ใน Streamlit Secrets หรือไม่ (กรณีรันบน Cloud)
+    if "google_credentials" in st.secrets:
+        key_dict = json.loads(st.secrets["google_credentials"])
+        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+            key_dict, 
+            ['https://www.googleapis.com/auth/drive']
+        )
+    # 2. ถ้าไม่มี แปลว่ารันเทสบนคอมตัวเอง (Local) ให้หาจากไฟล์ JSON
+    else:
+        # ระบุชื่อไฟล์ Key ตัวใหม่ของคุณตรงนี้นะครับ
+        key_path = os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json') 
+        if not os.path.exists(key_path):
+            print("⚠️ ไม่พบไฟล์คีย์ Service Account และไม่มีค่าใน Secrets")
+            return None
+        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
+            key_path, 
+            ['https://www.googleapis.com/auth/drive']
+        )
+    
+    return GoogleDrive(gauth)
+
+# 🎯 อัปเดตฟังก์ชัน Upload
 def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
         if not os.path.exists(local_file_path):
             return False
             
-        gauth = GoogleAuth()
-        gauth.settings['client_config_backend'] = 'settings'
-        key_path = os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json')
-            
-        if not os.path.exists(key_path):
-            print(f"⚠️ ไม่พบไฟล์คีย์ Service Account: {key_path}")
-            return False
-            
-        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            key_path, 
-            ['https://www.googleapis.com/auth/drive']
-        )
-        drive = GoogleDrive(gauth)
+        drive = get_google_drive_service()
+        if not drive: return False
         
         file_name = os.path.basename(local_file_path)
         
@@ -67,7 +82,7 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         file_list = drive.ListFile({'q': f"'{folder_id}' in parents and title = '{file_name}' and trashed = false"}).GetList()
         for old_file in file_list:
             old_file.Delete()
-            
+         
         drive_file = drive.CreateFile({
             'title': file_name,
             'parents': [{'id': folder_id}]
@@ -80,20 +95,11 @@ def upload_to_google_drive(local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjV
         print(f"Drive Upload Error: {e}")
         return False
 
+# 🎯 อัปเดตฟังก์ชัน Download
 def download_from_google_drive(file_name, local_file_path, folder_id="1hcqai0lVGsGNdGnH9BBKHgjVnNSlKUbU"):
     try:
-        gauth = GoogleAuth()
-        gauth.settings['client_config_backend'] = 'settings'
-        key_path = os.path.join(BASE_DIR, 'procurement-497602-82656c1d03df.json')
-        
-        if not os.path.exists(key_path):
-            return False
-            
-        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            key_path, 
-            ['https://www.googleapis.com/auth/drive']
-        )
-        drive = GoogleDrive(gauth)
+        drive = get_google_drive_service()
+        if not drive: return False
         
         # ค้นหาไฟล์บน Google Drive ปลายทาง
         file_list = drive.ListFile({'q': f"'{folder_id}' in parents and title = '{file_name}' and trashed = false"}).GetList()
